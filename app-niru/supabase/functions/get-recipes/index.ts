@@ -1,7 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts"
 
-const SPOONACULAR_KEY = "X"
-const GOOGLE_VISION_KEY = "X"
+const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? ""
+const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? ""
 const RESULTS_LIMIT = 1
 
 async function detectLabels(base64: string): Promise<string[]> {
