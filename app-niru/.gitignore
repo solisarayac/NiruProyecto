@@ -47,6 +47,7 @@ supabase/.temp/
 supabase/functions/.env
 .env
 .env.local
+.env*.local
 
 # --- Extras de Seguridad ---
 *.log
