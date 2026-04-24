@@ -1,0 +1,10 @@
+{
+  "deno.enable": true,
+  "deno.unstable": true,
+  "deno.lint": true,
+  "deno.format": true,
+  // paths are relative to the workspace root — adjust if your folder differs
+  "deno.enablePaths": [
+    "app-niru/supabase/functions/get-recipes"
+  ]
+}
