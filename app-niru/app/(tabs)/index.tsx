@@ -6,12 +6,15 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Image,
 } from "react-native";
 import { supabase } from "../../services/supabase";
 import CameraScreen from "../../screens/CameraScreen";
 import { detectIngredients } from "../../services/visionService";
 import RecipeCard from "../../components/RecipeCard";
 import RecipeDetailScreen from "../../screens/RecipeDetailScreen";
+import { savePhotoToHistory } from "../../services/photoHistory";
+
 
 type Recipe = {
   id: number;
@@ -27,6 +30,7 @@ export default function HomeScreen() {
   const [ingredients, setIngredients] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [currentBase64, setCurrentBase64] = useState<string | null>(null);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -36,13 +40,25 @@ export default function HomeScreen() {
     setLoading(true);
     setRecipes([]);
     setShowCamera(false);
+    setCurrentBase64(base64);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     try {
       const result = await detectIngredients(base64);
       setIngredients(result.ingredients);
       setRecipes(result.recipes);
+
+      if (user) {
+        await savePhotoToHistory(user.id, base64, result.ingredients);
+      }
     } catch (error: any) {
       console.log("Error:", error);
+      if (user) {
+        await savePhotoToHistory(user.id, base64, "");
+      }
     } finally {
       setLoading(false);
     }
@@ -110,6 +126,13 @@ export default function HomeScreen() {
             <Text style={styles.retryText}>📷 Tomar otra foto</Text>
           </TouchableOpacity>
 
+          {currentBase64 && (
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${currentBase64}` }}
+              style={{ width: '100%', height: 200, borderRadius: 12, marginBottom: 12 }}
+            />
+          )}
+          
           {ingredients && (
             <Text style={styles.ingredientsText}>
               🥕 Ingredientes: {ingredients}
