@@ -1,25 +1,26 @@
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native'
 
 type Recipe = {
+  id: number
   title: string
   image: string
   used: string[]
   missing: string[]
 }
 
-export default function RecipeCard({ recipe, onSave }: { recipe: Recipe, onSave: () => void }) {
+export default function RecipeCard({ recipe, onSave, onPress }: { recipe: Recipe, onSave: () => void, onPress: () => void }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       <Image source={{ uri: recipe.image }} style={styles.image} />
       <View style={styles.info}>
         <Text style={styles.title}>{recipe.title}</Text>
         <Text style={styles.label}>✅ Tenés: <Text style={styles.used}>{recipe.used.join(', ')}</Text></Text>
         <Text style={styles.label}>❌ Te falta: <Text style={styles.missing}>{recipe.missing.join(', ')}</Text></Text>
-        <TouchableOpacity style={styles.saveButton} onPress={onSave}>
+        <TouchableOpacity style={styles.saveButton} onPress={(e) => { e.stopPropagation(); onSave() }}>
           <Text style={styles.saveButtonText}>❤️ Guardar receta</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 
