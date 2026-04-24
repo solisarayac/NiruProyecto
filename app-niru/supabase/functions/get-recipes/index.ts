@@ -71,12 +71,13 @@ Deno.serve(async (req) => {
     const response = await fetch(url)
     const data = await response.json()
 
-    const recipes = data.map((r: any) => ({
-      title: r.title,
-      image: r.image,
-      used: r.usedIngredients.map((i: any) => i.name),
-      missing: r.missedIngredients.map((i: any) => i.name),
-    }))
+const recipes = data.map((r: any) => ({
+  id: r.id,
+  title: r.title,
+  image: r.image,
+  used: r.usedIngredients.map((i: any) => i.name),
+  missing: r.missedIngredients.map((i: any) => i.name),
+}))
 
     return new Response(
       JSON.stringify({ ingredients: ingredientsString, recipes }),
