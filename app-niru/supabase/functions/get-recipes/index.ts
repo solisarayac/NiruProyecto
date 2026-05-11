@@ -42,9 +42,63 @@ async function filterValidIngredients(labels: string[]): Promise<string[]> {
   return unique.slice(0, 8)
 }
 
+async function getRandomRecipes(): Promise<any[]> {
+  const response = await fetch(
+    `https://api.spoonacular.com/recipes/random?number=9&apiKey=${SPOONACULAR_KEY}`
+  )
+  const data = await response.json()
+  return data.recipes.map((r: any) => ({
+    id: r.id,
+    title: r.title,
+    image: r.image,
+    used: [],
+    missing: [],
+  }))
+}
+
+async function getInstructions(recipeId: number): Promise<any[]> {
+  const response = await fetch(
+    `https://api.spoonacular.com/recipes/${recipeId}/analyzedInstructions?apiKey=${SPOONACULAR_KEY}`
+  )
+  const data = await response.json()
+  if (data && data.length > 0) {
+    return data[0].steps.map((s: any) => ({
+      number: s.number,
+      step: s.step,
+    }))
+  }
+  return []
+}
+
 Deno.serve(async (req) => {
   try {
-    const { base64 } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const action = body?.action
+
+    if (action === 'random') {
+      const recipes = await getRandomRecipes()
+      return new Response(
+        JSON.stringify({ recipes }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    if (action === 'instructions') {
+      const { recipeId } = body
+      if (!recipeId) {
+        return new Response(
+          JSON.stringify({ error: "recipeId requerido" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      }
+      const steps = await getInstructions(recipeId)
+      return new Response(
+        JSON.stringify({ steps }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    const { base64 } = body
 
     if (!base64) {
       return new Response(
@@ -67,17 +121,17 @@ Deno.serve(async (req) => {
     }
 
     const ingredientsString = ingredients.join(',')
-    const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientsString}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`
-    const response = await fetch(url)
+    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientsString}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`
+    const response = await fetch(recipesUrl)
     const data = await response.json()
 
-const recipes = data.map((r: any) => ({
-  id: r.id,
-  title: r.title,
-  image: r.image,
-  used: r.usedIngredients.map((i: any) => i.name),
-  missing: r.missedIngredients.map((i: any) => i.name),
-}))
+    const recipes = data.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      image: r.image,
+      used: r.usedIngredients.map((i: any) => i.name),
+      missing: r.missedIngredients.map((i: any) => i.name),
+    }))
 
     return new Response(
       JSON.stringify({ ingredients: ingredientsString, recipes }),

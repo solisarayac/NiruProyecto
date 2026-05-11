@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
+import { supabase } from '../services/supabase'
 
 type Step = {
   number: number;
@@ -38,20 +39,19 @@ export default function RecipeDetailScreen({
     fetchInstructions();
   }, []);
 
-  async function fetchInstructions() {
-    console.log("Cargando instrucciones para recipe id:", recipe.id);
+async function fetchInstructions() {
+    console.log('Cargando instrucciones para recipe id:', recipe.id)
     try {
-      const response = await fetch(
-        `https://api.spoonacular.com/recipes/${recipe.id}/analyzedInstructions?apiKey=${SPOONACULAR_KEY}`,
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        setSteps(data[0].steps);
-      }
+      const { data, error } = await supabase.functions.invoke('get-recipes', {
+        body: { action: 'instructions', recipeId: recipe.id }
+      })
+
+      if (error) throw error
+      if (data?.steps) setSteps(data.steps)
     } catch (error) {
-      console.log("Error cargando instrucciones:", error);
+      console.log('Error cargando instrucciones:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 

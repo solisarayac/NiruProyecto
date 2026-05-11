@@ -15,6 +15,7 @@ import { detectIngredients } from "../../services/visionService";
 import RecipeCard from "../../components/RecipeCard";
 import RecipeDetailScreen from "../../screens/RecipeDetailScreen";
 import { savePhotoToHistory } from "../../services/photoHistory";
+import { getOrFetchRandomRecipes } from '../../services/randomRecipes'
 
 type Recipe = {
   id: number;
@@ -31,6 +32,19 @@ export default function HomeScreen() {
   const [showCamera, setShowCamera] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [currentBase64, setCurrentBase64] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [selectedMock, setSelectedMock] = useState<any | null>(null)
+
+  useEffect(() => {
+    loadSuggestions()
+  }, [])
+
+  async function loadSuggestions() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const recipes = await getOrFetchRandomRecipes(user.id)
+    setSuggestions(recipes)
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -101,6 +115,15 @@ export default function HomeScreen() {
     );
   }
 
+  if (selectedMock) {
+    return (
+      <RecipeDetailScreen
+        recipe={selectedMock}
+        onBack={() => setSelectedMock(null)}
+      />
+    )
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -167,18 +190,10 @@ export default function HomeScreen() {
         <View style={styles.suggestionsSection}>
           <Text style={styles.suggestionsTitle}>🍽️ Recetas sugeridas</Text>
           <View style={styles.grid}>
-            {[].map((item: any) => (
-              <TouchableOpacity
-                key={item.id.toString()}
-                style={styles.suggestionCard}
-              >
-                <Image
-                  source={{ uri: item.image }}
-                  style={styles.suggestionImage}
-                />
-                <Text style={styles.suggestionTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
+            {suggestions.map(item => (
+              <TouchableOpacity key={item.id.toString()} style={styles.suggestionCard} onPress={() => setSelectedMock(item)}>
+                <Image source={{ uri: item.image }} style={styles.suggestionImage} />
+                <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
               </TouchableOpacity>
             ))}
           </View>
