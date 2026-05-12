@@ -21,7 +21,6 @@ export default function RootLayout() {
   }, [])
 
   if (loading) return null
-
   if (!session) return <LoginScreen />
 
   return (
