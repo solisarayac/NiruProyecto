@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, FlatList, Image, ScrollView,
+  ActionSheetIOS, Platform, Alert as RNAlert
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../services/supabase";
 import { detectIngredients } from "../../services/visionService";
@@ -11,6 +13,8 @@ import RecipeDetailScreen from "../../screens/RecipeDetailScreen";
 import { savePhotoToHistory } from "../../services/photoHistory";
 import { getOrFetchRandomRecipes } from "../../services/randomRecipes";
 import { Colors, Spacing, Radius, Typography } from "../../constants/theme";
+import Toast from '../../components/Toast'
+import { useToast } from '../../hooks/useToast'
 
 type Recipe = {
   id: number;
@@ -30,13 +34,44 @@ export default function HomeScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
+  const { toast, showToast, hideToast } = useToast()
+
   useEffect(() => { loadSuggestions() }, [])
+
+  useFocusEffect(
+    useCallback(() => { loadSavedIds() }, [])
+  )
+
+  async function loadSavedIds() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('saved_recipes').select('title').eq('user_id', user.id)
+    if (data) setSavedIds(new Set(data.map((r: any) => r.title)))
+  }
 
   async function loadSuggestions() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const recipes = await getOrFetchRandomRecipes(user.id)
     setSuggestions(recipes)
+  }
+
+  function handleScanPress() {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) handleOpenCamera()
+          if (index === 2) handleOpenGallery()
+        }
+      )
+    } else {
+      RNAlert.alert('Seleccionar imagen', '', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Tomar foto', onPress: handleOpenCamera },
+        { text: 'Elegir de galería', onPress: handleOpenGallery },
+      ])
+    }
   }
 
   async function handleOpenCamera() {
@@ -76,17 +111,19 @@ export default function HomeScreen() {
   }
 
   async function handleSaveRecipe(recipe: Recipe) {
+    if (savedIds.has(recipe.title)) {
+      showToast('Esta receta ya está guardada ⭐', 'info')
+      return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data: existing } = await supabase.from("saved_recipes").select("id").eq("user_id", user.id).eq("title", recipe.title).single()
-    if (existing) { alert("Esta receta ya está en tus favoritos ⭐"); return }
     const { error } = await supabase.from("saved_recipes").insert({
       user_id: user.id, recipe_id: recipe.id, title: recipe.title,
       image: recipe.image, used: recipe.used.join(","), missing: recipe.missing.join(","),
     })
     if (!error) {
       setSavedIds(prev => new Set(prev).add(recipe.title))
-      alert("Receta guardada ✅")
+      showToast('Receta guardada', 'success')
     }
   }
 
@@ -94,73 +131,76 @@ export default function HomeScreen() {
   if (selectedMock) return <RecipeDetailScreen recipe={selectedMock} onBack={() => setSelectedMock(null)} />
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.hero}>
-        <Text style={styles.heroSub}>Bienvenido a Niru</Text>
-        <Text style={styles.heroTitle}>Deja tu imaginacion volar.</Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.hero}>
+          <Text style={styles.heroSub}>Bienvenido a Niru</Text>
+          <Text style={styles.heroTitle}>Deja tu imaginacion volar.</Text>
+        </View>
 
-      <View style={styles.scanCard}>
-        <Text style={styles.scanLabel}>Escanea, cocina, disfruta.</Text>
+        <View style={styles.scanCard}>
+          <Text style={styles.scanLabel}>Escanea, cocina, disfruta.</Text>
 
-        {!imageCaptured ? (
-          <TouchableOpacity style={styles.scanArea} onPress={handleOpenCamera}>
-            <Text style={styles.cameraIcon}>📷</Text>
-            <Text style={styles.scanText}>Toma la foto de tus ingredientes</Text>
-            <Text style={styles.scanSubText}>o elige una imagen de tu galería</Text>
-          </TouchableOpacity>
-        ) : (
-          <View>
-            <TouchableOpacity style={styles.retryButton} onPress={() => { setImageCaptured(null); setRecipes([]); setIngredients(null) }}>
-              <Text style={styles.retryText}>Tomar foto de nuevo</Text>
+          {!imageCaptured ? (
+            <TouchableOpacity style={styles.scanArea} onPress={handleScanPress}>
+              <Text style={styles.cameraIcon}>📷</Text>
+              <Text style={styles.scanText}>Toma la foto de tus ingredientes</Text>
+              <Text style={styles.scanSubText}>o elige una imagen de tu galería</Text>
             </TouchableOpacity>
-            <Image source={{ uri: imageCaptured }} style={styles.capturedImage} />
-            {ingredients && (
-              <Text style={styles.ingredientsText}>
-                <Text style={{ fontWeight: '700' }}>Ingredientes reconocidos: </Text>{ingredients}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Analizando ingredientes...</Text>
-          </View>
-        )}
-      </View>
-
-      {recipes.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recetas Disponibles</Text>
-          {recipes.map((item) => (
-            <RecipeCard
-              key={item.id.toString()}
-              recipe={item}
-              onSave={() => handleSaveRecipe(item)}
-              onPress={() => setSelectedRecipe(item)}
-              isSaved={savedIds.has(item.title)}
-            />
-          ))}
-        </View>
-      )}
-
-      {suggestions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recetas Sugeridas</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {suggestions.map((item) => (
-              <TouchableOpacity key={item.id.toString()} style={styles.suggestionCard} onPress={() => setSelectedMock(item)}>
-                <Image source={{ uri: item.image }} style={styles.suggestionImage} />
-                <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.suggestionFav}>Favorito de los usuarios</Text>
+          ) : (
+            <View>
+              <TouchableOpacity style={styles.retryButton} onPress={() => { setImageCaptured(null); setRecipes([]); setIngredients(null) }}>
+                <Text style={styles.retryText}>Tomar foto de nuevo</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+              <Image source={{ uri: imageCaptured }} style={styles.capturedImage} />
+              {ingredients && (
+                <Text style={styles.ingredientsText}>
+                  <Text style={{ fontWeight: '700' }}>Ingredientes reconocidos: </Text>{ingredients}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Analizando ingredientes...</Text>
+            </View>
+          )}
         </View>
-      )}
-    </ScrollView>
+
+        {recipes.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recetas Disponibles</Text>
+            {recipes.map((item) => (
+              <RecipeCard
+                key={item.id.toString()}
+                recipe={item}
+                onSave={() => handleSaveRecipe(item)}
+                onPress={() => setSelectedRecipe(item)}
+                isSaved={savedIds.has(item.title)}
+              />
+            ))}
+          </View>
+        )}
+
+        {suggestions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recetas Sugeridas</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {suggestions.map((item) => (
+                <TouchableOpacity key={item.id.toString()} style={styles.suggestionCard} onPress={() => setSelectedMock(item)}>
+                  <Image source={{ uri: item.image }} style={styles.suggestionImage} />
+                  <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
+                  <Text style={styles.suggestionFav}>Favorito de los usuarios</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </ScrollView>
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
+    </View>
   )
 }
 

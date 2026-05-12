@@ -31,9 +31,15 @@ export default function RecipeCard({
         <Text style={styles.label}>Te falta: <Text style={styles.missing}>{recipe.missing.join(', ')}</Text></Text>
 
         {isSaved ? (
-          <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-            <Text style={styles.deleteText}>Eliminar receta</Text>
-          </TouchableOpacity>
+          onDelete ? (
+            <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+              <Text style={styles.deleteText}>Eliminar receta</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.savedButton} onPress={onSave}>
+              <Text style={styles.savedText}>Receta guardada ✓</Text>
+            </TouchableOpacity>
+          )
         ) : (
           <TouchableOpacity style={styles.saveButton} onPress={(e) => { e.stopPropagation?.(); onSave?.() }}>
             <Text style={styles.saveText}>Guardar Receta</Text>
@@ -56,4 +62,6 @@ const styles = StyleSheet.create({
   saveText: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
   deleteButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' },
   deleteText: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
+  savedButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' },
+  savedText: { color: Colors.grayText, fontWeight: '700', fontSize: 14 },
 })
