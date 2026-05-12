@@ -5,6 +5,8 @@ import { supabase } from '../services/supabase'
 import RecipeCard from '../components/RecipeCard'
 import RecipeDetailScreen from './RecipeDetailScreen'
 import { Colors, Spacing, Typography } from '../constants/theme'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 type SavedRecipe = {
   id: string
@@ -19,6 +21,8 @@ export default function FavoritesScreen() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null)
+
+  const { toast, showToast, hideToast } = useToast()
 
   useFocusEffect(
     useCallback(() => { fetchFavorites() }, [])
@@ -39,7 +43,10 @@ export default function FavoritesScreen() {
 
   async function handleDelete(id: string) {
     const { error } = await supabase.from('saved_recipes').delete().eq('id', id)
-    if (!error) setRecipes(prev => prev.filter(r => r.id !== id))
+    if (!error) {
+      setRecipes(prev => prev.filter(r => r.id !== id))
+      showToast('Receta eliminada', 'error')
+    }
   }
 
   if (selectedRecipe) {
@@ -84,6 +91,7 @@ export default function FavoritesScreen() {
           />
         )}
       />
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
   )
 }

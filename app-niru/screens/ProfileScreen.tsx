@@ -5,6 +5,8 @@ import { useFocusEffect } from 'expo-router'
 import { supabase } from '../services/supabase'
 import { getPhotoHistory, deletePhotoFromHistory } from '../services/photoHistory'
 import { Colors, Spacing, Radius, Typography } from '../constants/theme'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 type PhotoHistory = {
   id: string
@@ -29,6 +31,8 @@ export default function ProfileScreen() {
   const [photoHistory, setPhotoHistory] = useState<PhotoHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+
+  const { toast, showToast, hideToast } = useToast()
 
   useFocusEffect(useCallback(() => { loadProfile() }, []))
 
@@ -66,8 +70,8 @@ export default function ProfileScreen() {
     setLoading(true)
     const { error } = await supabase.from('profiles').update({ first_name: firstName, last_name: lastName }).eq('id', userId)
     setLoading(false)
-    if (error) Alert.alert('Error', 'No se pudo actualizar el perfil')
-    else Alert.alert('Éxito', 'Perfil actualizado')
+    if (error) showToast('No se pudo actualizar el perfil', 'error')
+    else showToast('Perfil actualizado', 'success')
   }
 
   async function handleChangePassword() {
@@ -75,8 +79,8 @@ export default function ProfileScreen() {
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setLoading(false)
-    if (error) Alert.alert('Error', error.message)
-    else { Alert.alert('Éxito', 'Contraseña actualizada'); setNewPassword('') }
+    if (error) showToast(error.message, 'error')
+    else { showToast('Contraseña actualizada', 'success'); setNewPassword('') }
   }
 
   async function handleDeletePhoto(id: string, photoUrl: string) {
@@ -90,51 +94,54 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.brand}>Niru</Text>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.brand}>Niru</Text>
 
-      <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAvatar}>
-        {avatarUrl
-          ? <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-          : <View style={styles.avatarPlaceholder}><Text style={styles.avatarIcon}>👤</Text></View>
-        }
-      </TouchableOpacity>
-      <Text style={styles.avatarLabel}>Cambiar foto de perfil</Text>
+        <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAvatar}>
+          {avatarUrl
+            ? <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            : <View style={styles.avatarPlaceholder}><Text style={styles.avatarIcon}>👤</Text></View>
+          }
+        </TouchableOpacity>
+        <Text style={styles.avatarLabel}>Cambiar foto de perfil</Text>
 
-      <Text style={styles.sectionTitle}>Información personal</Text>
-      <TextInput style={styles.input} placeholder="Nombre" value={firstName} onChangeText={setFirstName} />
-      <TextInput style={styles.input} placeholder="Apellido" value={lastName} onChangeText={setLastName} />
-      <TouchableOpacity style={styles.button} onPress={handleSaveProfile} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Guardando...' : 'Guardar cambios'}</Text>
-      </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Información personal</Text>
+        <TextInput style={styles.input} placeholder="Nombre" value={firstName} onChangeText={setFirstName} />
+        <TextInput style={styles.input} placeholder="Apellido" value={lastName} onChangeText={setLastName} />
+        <TouchableOpacity style={styles.button} onPress={handleSaveProfile} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Guardando...' : 'Guardar cambios'}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Cambiar contraseña</Text>
-      <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
-      <TouchableOpacity style={styles.buttonOutline} onPress={handleChangePassword} disabled={loading}>
-        <Text style={styles.buttonOutlineText}>Actualizar contraseña</Text>
-      </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Cambiar contraseña</Text>
+        <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+        <TouchableOpacity style={styles.buttonOutline} onPress={handleChangePassword} disabled={loading}>
+          <Text style={styles.buttonOutlineText}>Actualizar contraseña</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Historial de fotos</Text>
-      {historyLoading && <ActivityIndicator size="large" color={Colors.primary} />}
-      {!historyLoading && photoHistory.length === 0 && (
-        <Text style={styles.empty}>No hay fotos en tu historial todavía.</Text>
-      )}
-      <View style={styles.grid}>
-        {photoHistory.map(item => (
-          <View key={item.id} style={styles.photoCard}>
-            <Image source={{ uri: item.photo_url }} style={styles.photoThumb} />
-            <Text style={styles.photoIngredients} numberOfLines={2}>{item.ingredients || 'Sin ingredientes'}</Text>
-            <TouchableOpacity style={styles.deletePhotoButton} onPress={() => handleDeletePhoto(item.id, item.photo_url)}>
-              <Text style={styles.deletePhotoText}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
+        <Text style={styles.sectionTitle}>Historial de fotos</Text>
+        {historyLoading && <ActivityIndicator size="large" color={Colors.primary} />}
+        {!historyLoading && photoHistory.length === 0 && (
+          <Text style={styles.empty}>No hay fotos en tu historial todavía.</Text>
+        )}
+        <View style={styles.grid}>
+          {photoHistory.map(item => (
+            <View key={item.id} style={styles.photoCard}>
+              <Image source={{ uri: item.photo_url }} style={styles.photoThumb} />
+              <Text style={styles.photoIngredients} numberOfLines={2}>{item.ingredients || 'Sin ingredientes'}</Text>
+              <TouchableOpacity style={styles.deletePhotoButton} onPress={() => handleDeletePhoto(item.id, item.photo_url)}>
+                <Text style={styles.deletePhotoText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Cerrar sesión</Text>
+        </TouchableOpacity>
+      </ScrollView>
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
+    </View>
   )
 }
 
