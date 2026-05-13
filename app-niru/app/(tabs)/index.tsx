@@ -77,7 +77,7 @@ export default function HomeScreen() {
   async function handleOpenCamera() {
     const permission = await ImagePicker.requestCameraPermissionsAsync()
     if (!permission.granted) return
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7 })
+    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.3 })
     if (!result.canceled && result.assets[0].base64) {
       processImage(result.assets[0].base64, result.assets[0].uri)
     }
