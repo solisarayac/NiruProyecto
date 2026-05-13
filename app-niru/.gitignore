@@ -52,5 +52,3 @@ supabase/functions/.env
 # --- Extras de Seguridad ---
 *.log
 .vscode/
-# Nota: Si compartes el proyecto con otros, quita .vscode/ del ignore 
-# para que todos tengan la misma configuración de Deno.
