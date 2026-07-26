@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../services/supabase";
 import VerifyScreen from "./VerifyScreen";
 import { Colors, Typography, Spacing, Radius } from "../constants/theme";
+import ForgotPasswordScreen from './ForgotPasswordScreen';
 
 function validatePassword(password: string): string | null {
   if (password.length < 8)
@@ -35,6 +36,7 @@ export default function LoginScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState(false);
 
   // 2. Ref de animación inicializado según el estado inicial
   const toggleAnim = useRef(new Animated.Value(isRegistering ? 0 : 1)).current;
@@ -124,6 +126,10 @@ export default function LoginScreen() {
       });
     setLoading(false);
     setPendingVerification(true);
+  }
+
+  if (forgotPassword) {
+    return <ForgotPasswordScreen onBack={() => setForgotPassword(false)} />;
   }
 
   if (pendingVerification) {
@@ -262,7 +268,9 @@ export default function LoginScreen() {
       {!isRegistering && (
         <Text style={styles.forgotText}>
           ¿Olvidaste la contraseña?{" "}
-          <Text style={styles.forgotLink}>Recupérala aquí</Text>
+          <Text style={styles.forgotLink} onPress={() => setForgotPassword(true)}>
+            Recupérala aquí
+          </Text>
         </Text>
       )}
     </ScrollView>
