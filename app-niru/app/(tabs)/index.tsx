@@ -16,6 +16,7 @@ import { Spacing, Radius, Typography } from "../../constants/theme";
 import { useTheme } from "../../context/ThemeContext";
 import Toast from '../../components/Toast';
 import { useToast } from '../../hooks/useToast';
+import HomeSkeleton from '../../components/skeletons/HomeSkeleton';
 
 type Recipe = {
   id: number;
@@ -26,6 +27,7 @@ type Recipe = {
 };
 
 export default function HomeScreen() {
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<string | null>(null);
@@ -35,7 +37,11 @@ export default function HomeScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
-  // 1. Hook de tema y generación de estilos dinámicos
+  // Estados para los tags de ingredientes
+  const [ingredientTags, setIngredientTags] = useState<string[]>([]);
+  const [showTags, setShowTags] = useState(false);
+
+  // Hook de tema
   const { Colors } = useTheme();
   const styles = getStyles(Colors);
 
@@ -59,6 +65,7 @@ export default function HomeScreen() {
     if (!user) return;
     const recipes = await getOrFetchRandomRecipes(user.id);
     setSuggestions(recipes);
+    setInitialLoading(false);
   }
 
   function handleScanPress() {
@@ -100,12 +107,16 @@ export default function HomeScreen() {
   async function processImage(base64: string, uri: string) {
     setLoading(true);
     setRecipes([]);
+    setIngredientTags([]);
+    setShowTags(false);
     setImageCaptured(uri);
     const { data: { user } } = await supabase.auth.getUser();
     try {
       const result = await detectIngredients(base64);
+      const tags = result.ingredients.split(',').filter((i: string) => i.trim() !== '');
+      setIngredientTags(tags);
       setIngredients(result.ingredients);
-      setRecipes(result.recipes);
+      setShowTags(true);
       if (user) await savePhotoToHistory(user.id, base64, result.ingredients);
     } catch (error: any) {
       console.log("Error:", error);
@@ -113,6 +124,24 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSearchWithTags() {
+    if (ingredientTags.length === 0) return;
+    setLoading(true);
+    setShowTags(false);
+    try {
+      const result = await detectIngredients(undefined, ingredientTags.join(','));
+      setRecipes(result.recipes);
+    } catch (error: any) {
+      console.log("Error buscando recetas:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function removeTag(tag: string) {
+    setIngredientTags(prev => prev.filter(t => t !== tag));
   }
 
   async function handleSaveRecipe(recipe: Recipe) {
@@ -132,6 +161,7 @@ export default function HomeScreen() {
     }
   }
 
+  if (initialLoading) return <HomeSkeleton />;
   if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
   if (selectedMock) return <RecipeDetailScreen recipe={selectedMock} onBack={() => setSelectedMock(null)} />;
 
@@ -154,7 +184,16 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ) : (
             <View>
-              <TouchableOpacity style={styles.retryButton} onPress={() => { setImageCaptured(null); setRecipes([]); setIngredients(null) }}>
+              <TouchableOpacity 
+                style={styles.retryButton} 
+                onPress={() => { 
+                  setImageCaptured(null); 
+                  setRecipes([]); 
+                  setIngredients(null);
+                  setIngredientTags([]);
+                  setShowTags(false);
+                }}
+              >
                 <Text style={styles.retryText}>Tomar foto de nuevo</Text>
               </TouchableOpacity>
               <Image source={{ uri: imageCaptured }} style={styles.capturedImage} />
@@ -163,6 +202,23 @@ export default function HomeScreen() {
                   <Text style={{ fontWeight: '700' }}>Ingredientes reconocidos: </Text>{ingredients}
                 </Text>
               )}
+            </View>
+          )}
+
+          {showTags && ingredientTags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              <Text style={styles.tagsTitle}>Ingredientes detectados:</Text>
+              <View style={styles.tagsRow}>
+                {ingredientTags.map(tag => (
+                  <TouchableOpacity key={tag} style={styles.tag} onPress={() => removeTag(tag)}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                    <Text style={styles.tagRemove}>✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={styles.searchButton} onPress={handleSearchWithTags}>
+                <Text style={styles.searchButtonText}>Buscar recetas con estos ingredientes</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -209,7 +265,6 @@ export default function HomeScreen() {
   );
 }
 
-// Function para generar estilos dinámicos
 const getStyles = (Colors: any) => ({
   container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { paddingBottom: Spacing.xxl },
@@ -225,7 +280,7 @@ const getStyles = (Colors: any) => ({
   retryButton: { borderWidth: 1, borderColor: Colors.primary, borderRadius: Radius.full, padding: Spacing.sm, alignItems: 'center' as const, marginBottom: Spacing.sm },
   retryText: { color: Colors.primary, fontWeight: '600' as const, fontSize: 14 },
   capturedImage: { width: '100%' as const, height: 220, borderRadius: Radius.md, marginBottom: Spacing.sm },
-  ingredientsText: { fontSize: 13, color: Colors.black, marginTop: Spacing.sm },
+  ingredientsText: { fontSize: 13, color: Colors.black, marginTop: Spacing.sm, marginBottom: Spacing.sm },
   loadingContainer: { alignItems: 'center' as const, padding: Spacing.lg },
   loadingText: { color: Colors.grayText, marginTop: Spacing.sm, fontSize: 13 },
   section: { paddingHorizontal: Spacing.md, marginBottom: Spacing.lg },
@@ -234,4 +289,12 @@ const getStyles = (Colors: any) => ({
   suggestionImage: { width: '100%' as const, height: 110 },
   suggestionTitle: { fontSize: 13, fontWeight: '600' as const, color: Colors.black, padding: Spacing.sm, paddingBottom: 2 },
   suggestionFav: { fontSize: 11, color: Colors.green, paddingHorizontal: Spacing.sm, paddingBottom: Spacing.sm },
+  tagsContainer: { marginBottom: Spacing.md, marginTop: Spacing.sm },
+  tagsTitle: { fontSize: 14, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
+  tagsRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: Spacing.sm, marginBottom: Spacing.md },
+  tag: { flexDirection: 'row' as const, alignItems: 'center' as const, backgroundColor: Colors.primaryLight, borderRadius: Radius.full, paddingVertical: 6, paddingHorizontal: Spacing.sm, gap: 4 },
+  tagText: { fontSize: 13, color: Colors.primary, fontWeight: '600' as const },
+  tagRemove: { fontSize: 11, color: Colors.primary, fontWeight: '700' as const },
+  searchButton: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
+  searchButtonText: { color: Colors.white, fontWeight: '700' as const, fontSize: 14 },
 });

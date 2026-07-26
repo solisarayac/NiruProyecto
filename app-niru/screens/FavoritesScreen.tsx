@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react'
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, FlatList } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { supabase } from '../services/supabase'
 import RecipeCard from '../components/RecipeCard'
 import RecipeDetailScreen from './RecipeDetailScreen'
-import { Spacing, Typography } from '../constants/theme'
+import { Spacing } from '../constants/theme'
 import { useTheme } from '../context/ThemeContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import FavoritesSkeleton from '../components/skeletons/FavoritesSkeleton'
 
 type SavedRecipe = {
   id: string
@@ -57,6 +58,10 @@ export default function FavoritesScreen() {
     return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />
   }
 
+  if (loading) {
+    return <FavoritesSkeleton />
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
@@ -64,9 +69,7 @@ export default function FavoritesScreen() {
         <Text style={styles.heroTitle}>A un simple click</Text>
       </View>
 
-      {loading && <ActivityIndicator size="large" color={Colors.primary} />}
-
-      {!loading && recipes.length === 0 && (
+      {recipes.length === 0 && (
         <Text style={styles.empty}>No tenés recetas guardadas todavía.</Text>
       )}
 
@@ -80,15 +83,15 @@ export default function FavoritesScreen() {
               id: item.recipe_id,
               title: item.title,
               image: item.image,
-              used: item.used.split(','),
-              missing: item.missing.split(','),
+              used: item.used ? item.used.split(',') : [],
+              missing: item.missing ? item.missing.split(',') : [],
             }}
             onPress={() => setSelectedRecipe({
               id: item.recipe_id,
               title: item.title,
               image: item.image,
-              used: item.used.split(','),
-              missing: item.missing.split(','),
+              used: item.used ? item.used.split(',') : [],
+              missing: item.missing ? item.missing.split(',') : [],
             })}
             isSaved={true}
             onDelete={() => handleDelete(item.id)}

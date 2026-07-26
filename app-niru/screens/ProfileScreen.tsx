@@ -8,6 +8,7 @@ import { Spacing, Radius, Typography } from '../constants/theme'
 import { useTheme } from '../context/ThemeContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import ProfileSkeleton from '../components/skeletons/ProfileSkeleton'
 
 type PhotoHistory = {
   id: string
@@ -29,10 +30,10 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [photoHistory, setPhotoHistory] = useState<PhotoHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
-
+  const [userId, setUserId  ] = useState<string | null>(null)
   const { Colors, toggleTheme, isDark } = useTheme()
   const styles = getStyles(Colors)
 
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
     const history = await getPhotoHistory(user.id)
     setPhotoHistory(history)
     setHistoryLoading(false)
+    setInitialLoading(false)
   }
 
   async function handlePickAvatar() {
@@ -96,6 +98,8 @@ export default function ProfileScreen() {
   async function handleLogout() {
     await supabase.auth.signOut()
   }
+
+  if (initialLoading) return <ProfileSkeleton />
 
   return (
     <View style={{ flex: 1 }}>
