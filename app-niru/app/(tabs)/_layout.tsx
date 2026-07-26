@@ -1,18 +1,26 @@
 import { Tabs } from 'expo-router';
-import { Colors } from '../../constants/theme';
-import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TabLayout() {
+  const { Colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          backgroundColor: Colors.background,
+          borderTopWidth: 1,
+          borderTopColor: Colors.grayBorder,
+          height: 60,
+          paddingBottom: 8,
+        },
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.black,
-      }}>
+        tabBarInactiveTintColor: Colors.grayText,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -36,13 +44,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    height: 60,
-    paddingBottom: 8,
-  },
-})

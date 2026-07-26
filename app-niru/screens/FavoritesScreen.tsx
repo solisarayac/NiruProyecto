@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { supabase } from '../services/supabase'
 import RecipeCard from '../components/RecipeCard'
 import RecipeDetailScreen from './RecipeDetailScreen'
-import { Colors, Spacing, Typography } from '../constants/theme'
+import { Spacing, Typography } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
@@ -21,6 +22,9 @@ export default function FavoritesScreen() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null)
+
+  const { Colors } = useTheme()
+  const styles = getStyles(Colors)
 
   const { toast, showToast, hideToast } = useToast()
 
@@ -96,11 +100,11 @@ export default function FavoritesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const getStyles = (Colors: any) => ({
+  container: { flex: 1, backgroundColor: Colors.background },
   hero: { padding: Spacing.lg, paddingTop: 60 },
-  heroSub: { fontSize: 14, color: Colors.primary, textAlign: 'center' },
-  heroTitle: { fontSize: 28, fontWeight: '800', color: Colors.primary, textAlign: 'center', marginTop: 4 },
-  empty: { textAlign: 'center', color: Colors.grayText, marginTop: 40, fontSize: 15 },
+  heroSub: { fontSize: 14, color: Colors.primary, textAlign: 'center' as const },
+  heroTitle: { fontSize: 28, fontWeight: '800' as const, color: Colors.primary, textAlign: 'center' as const, marginTop: 4 },
+  empty: { textAlign: 'center' as const, color: Colors.grayText, marginTop: 40, fontSize: 15 },
   list: { padding: Spacing.md, paddingBottom: 40 },
 })

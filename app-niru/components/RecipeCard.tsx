@@ -1,5 +1,6 @@
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native'
-import { Colors, Spacing, Radius, Typography } from '../constants/theme'
+import { View, Text, Image, TouchableOpacity } from 'react-native'
+import { Spacing, Radius, Typography } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext'
 
 type Recipe = {
   id: number
@@ -22,6 +23,9 @@ export default function RecipeCard({
   isSaved?: boolean
   onDelete?: () => void
 }) {
+  const { Colors } = useTheme()
+  const styles = getStyles(Colors)
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
       <Image source={{ uri: recipe.image }} style={styles.image} />
@@ -50,18 +54,18 @@ export default function RecipeCard({
   )
 }
 
-const styles = StyleSheet.create({
-  card: { backgroundColor: Colors.white, borderRadius: Radius.lg, marginBottom: Spacing.md, overflow: 'hidden', borderWidth: 1, borderColor: Colors.grayBorder },
-  image: { width: '100%', height: 200 },
+const getStyles = (Colors: any) => ({
+  card: { backgroundColor: Colors.cardBackground, borderRadius: Radius.lg, marginBottom: Spacing.md, overflow: 'hidden' as const, borderWidth: 1, borderColor: Colors.grayBorder },
+  image: { width: '100%' as const, height: 200 },
   info: { padding: Spacing.md },
-  title: { fontSize: 16, fontWeight: '700', color: Colors.black, marginBottom: Spacing.sm },
+  title: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
   label: { fontSize: 14, color: Colors.black, marginBottom: 4 },
   used: { color: Colors.green },
   missing: { color: Colors.primary },
-  saveButton: { marginTop: Spacing.sm, backgroundColor: Colors.primaryLight, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' },
-  saveText: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
-  deleteButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' },
-  deleteText: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
-  savedButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' },
-  savedText: { color: Colors.grayText, fontWeight: '700', fontSize: 14 },
+  saveButton: { marginTop: Spacing.sm, backgroundColor: Colors.primaryLight, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' as const },
+  saveText: { color: Colors.primary, fontWeight: '700' as const, fontSize: 14 },
+  savedButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' as const },
+  savedText: { color: Colors.grayText, fontWeight: '700' as const, fontSize: 14 },
+  deleteButton: { marginTop: Spacing.sm, backgroundColor: Colors.gray, padding: Spacing.sm + 2, borderRadius: Radius.full, alignItems: 'center' as const },
+  deleteText: { color: Colors.primary, fontWeight: '700' as const, fontSize: 14 },
 })

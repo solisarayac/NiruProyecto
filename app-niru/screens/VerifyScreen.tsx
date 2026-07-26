@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native'
 import { supabase } from '../services/supabase'
-import { Colors, Spacing, Radius, Typography } from '../constants/theme'
+import { Spacing, Radius } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext'
 
 export default function VerifyScreen({
   email, firstName, lastName, avatarBase64, onVerified
 }: {
   email: string, firstName: string, lastName: string, avatarBase64: string | null, onVerified: () => void
 }) {
+  const { Colors } = useTheme()
+  const styles = getStyles(Colors)
+
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -53,6 +57,7 @@ export default function VerifyScreen({
       <TextInput
         style={styles.input}
         placeholder="000000"
+        placeholderTextColor={Colors.grayText}
         value={code}
         onChangeText={setCode}
         keyboardType="number-pad"
@@ -71,15 +76,15 @@ export default function VerifyScreen({
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white, padding: Spacing.lg, paddingTop: Spacing.xxl, alignItems: 'center', justifyContent: 'center' },
-  brand: { ...Typography.brandTitle, marginBottom: Spacing.xl },
-  title: { fontSize: 22, fontWeight: '700', color: Colors.black, marginBottom: Spacing.sm },
-  subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 22 },
-  email: { fontWeight: '700', color: Colors.primary },
-  input: { width: '100%', borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, fontSize: 32, letterSpacing: 8, textAlign: 'center' },
-  button: { width: '100%', backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center', marginBottom: Spacing.md },
-  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+const getStyles = (Colors: any) => ({
+  container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg, paddingTop: Spacing.xxl, alignItems: 'center' as const, justifyContent: 'center' as const },
+  brand: { fontSize: 48, fontWeight: '700' as const, fontStyle: 'italic' as const, color: Colors.primary, marginBottom: Spacing.xl },
+  title: { fontSize: 22, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
+  subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center' as const, marginBottom: Spacing.xl, lineHeight: 22 },
+  email: { fontWeight: '700' as const, color: Colors.primary },
+  input: { width: '100%' as const, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, fontSize: 32, letterSpacing: 8, textAlign: 'center' as const, backgroundColor: Colors.inputBackground, color: Colors.black },
+  button: { width: '100%' as const, backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.md },
+  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' as const },
   resend: { fontSize: 13, color: Colors.grayText },
-  resendLink: { fontWeight: '700', color: Colors.black },
+  resendLink: { fontWeight: '700' as const, color: Colors.black },
 })

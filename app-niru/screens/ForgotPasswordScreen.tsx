@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity } from 'react-native'
 import { supabase } from '../services/supabase'
-import { Colors, Spacing, Radius, Typography } from '../constants/theme'
+import { Spacing, Radius } from '../constants/theme'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { useTheme } from '../context/ThemeContext'
 
 export default function ForgotPasswordScreen({ onBack }: { onBack: () => void }) {
+  const { Colors } = useTheme()
+  const styles = getStyles(Colors)
+
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -35,6 +39,7 @@ export default function ForgotPasswordScreen({ onBack }: { onBack: () => void })
           <TextInput
             style={styles.input}
             placeholder="correoelectrónico@dominio.com"
+            placeholderTextColor={Colors.grayText}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -64,15 +69,15 @@ export default function ForgotPasswordScreen({ onBack }: { onBack: () => void })
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white, padding: Spacing.lg, paddingTop: Spacing.xxl, alignItems: 'center', justifyContent: 'center' },
-  brand: { ...Typography.brandTitle, marginBottom: Spacing.xl },
-  title: { fontSize: 22, fontWeight: '700', color: Colors.black, marginBottom: Spacing.sm, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 22 },
-  email: { fontWeight: '700', color: Colors.primary },
-  input: { width: '100%', borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15 },
-  button: { width: '100%', backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center', marginBottom: Spacing.md },
-  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+const getStyles = (Colors: any) => ({
+  container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg, paddingTop: Spacing.xxl, alignItems: 'center' as const, justifyContent: 'center' as const },
+  brand: { fontSize: 48, fontWeight: '700' as const, fontStyle: 'italic' as const, color: Colors.primary, marginBottom: Spacing.xl },
+  title: { fontSize: 22, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm, textAlign: 'center' as const },
+  subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center' as const, marginBottom: Spacing.xl, lineHeight: 22 },
+  email: { fontWeight: '700' as const, color: Colors.primary },
+  input: { width: '100%' as const, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
+  button: { width: '100%' as const, backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.md },
+  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' as const },
   backButton: { marginTop: Spacing.lg },
-  backText: { color: Colors.primary, fontSize: 14, fontWeight: '600' },
+  backText: { color: Colors.primary, fontSize: 14, fontWeight: '600' as const },
 })

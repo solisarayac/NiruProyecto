@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert, ScrollView, FlatList, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, Image, Alert, ScrollView, FlatList, ActivityIndicator } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useFocusEffect } from 'expo-router'
 import { supabase } from '../services/supabase'
 import { getPhotoHistory, deletePhotoFromHistory } from '../services/photoHistory'
-import { Colors, Spacing, Radius, Typography } from '../constants/theme'
+import { Spacing, Radius, Typography } from '../constants/theme'
+import { useTheme } from '../context/ThemeContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
@@ -31,6 +32,9 @@ export default function ProfileScreen() {
   const [photoHistory, setPhotoHistory] = useState<PhotoHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+
+  const { Colors, toggleTheme, isDark } = useTheme()
+  const styles = getStyles(Colors)
 
   const { toast, showToast, hideToast } = useToast()
 
@@ -107,16 +111,21 @@ export default function ProfileScreen() {
         <Text style={styles.avatarLabel}>Cambiar foto de perfil</Text>
 
         <Text style={styles.sectionTitle}>Información personal</Text>
-        <TextInput style={styles.input} placeholder="Nombre" value={firstName} onChangeText={setFirstName} />
-        <TextInput style={styles.input} placeholder="Apellido" value={lastName} onChangeText={setLastName} />
+        <TextInput style={styles.input} placeholder="Nombre" value={firstName} onChangeText={setFirstName} placeholderTextColor={Colors.grayText} />
+        <TextInput style={styles.input} placeholder="Apellido" value={lastName} onChangeText={setLastName} placeholderTextColor={Colors.grayText} />
         <TouchableOpacity style={styles.button} onPress={handleSaveProfile} disabled={loading}>
           <Text style={styles.buttonText}>{loading ? 'Guardando...' : 'Guardar cambios'}</Text>
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Cambiar contraseña</Text>
-        <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+        <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholderTextColor={Colors.grayText} />
         <TouchableOpacity style={styles.buttonOutline} onPress={handleChangePassword} disabled={loading}>
           <Text style={styles.buttonOutlineText}>Actualizar contraseña</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Apariencia</Text>
+        <TouchableOpacity style={styles.themeToggle} onPress={toggleTheme}>
+          <Text style={styles.themeToggleText}>{isDark ? '☀️ Cambiar a modo claro' : '🌙 Cambiar a modo oscuro'}</Text>
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Historial de fotos</Text>
@@ -145,28 +154,30 @@ export default function ProfileScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+const getStyles = (Colors: any) => ({
+  container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.lg, paddingTop: 60, paddingBottom: 60 },
-  brand: { ...Typography.brandTitle, textAlign: 'center', marginBottom: Spacing.lg },
-  avatarContainer: { alignSelf: 'center', width: 100, height: 100, borderRadius: 50, overflow: 'hidden', marginBottom: Spacing.sm, borderWidth: 2, borderColor: Colors.primary },
-  avatar: { width: '100%', height: '100%' },
-  avatarPlaceholder: { width: '100%', height: '100%', backgroundColor: Colors.gray, justifyContent: 'center', alignItems: 'center' },
+  brand: { fontSize: 48, fontWeight: '700' as const, fontStyle: 'italic' as const, color: Colors.primary, textAlign: 'center' as const, marginBottom: Spacing.lg },
+  avatarContainer: { alignSelf: 'center' as const, width: 100, height: 100, borderRadius: 50, overflow: 'hidden' as const, marginBottom: Spacing.sm, borderWidth: 2, borderColor: Colors.primary },
+  avatar: { width: '100%' as const, height: '100%' as const },
+  avatarPlaceholder: { width: '100%' as const, height: '100%' as const, backgroundColor: Colors.grayBorder, justifyContent: 'center' as const, alignItems: 'center' as const },
   avatarIcon: { fontSize: 40 },
-  avatarLabel: { textAlign: 'center', color: Colors.grayText, fontSize: 13, marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.black, marginTop: Spacing.lg, marginBottom: Spacing.sm },
-  input: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15 },
-  button: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center', marginBottom: Spacing.sm },
-  buttonText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-  buttonOutline: { borderWidth: 1, borderColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' },
-  buttonOutlineText: { color: Colors.primary, fontSize: 15, fontWeight: '700' },
-  empty: { textAlign: 'center', color: Colors.grayText, marginTop: Spacing.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: Spacing.sm },
-  photoCard: { width: '48%', margin: '1%', borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.gray, marginBottom: Spacing.sm },
-  photoThumb: { width: '100%', height: 110 },
+  avatarLabel: { textAlign: 'center' as const, color: Colors.grayText, fontSize: 13, marginBottom: Spacing.lg },
+  sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  input: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
+  button: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.sm },
+  buttonText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
+  buttonOutline: { borderWidth: 1, borderColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
+  buttonOutlineText: { color: Colors.primary, fontSize: 15, fontWeight: '700' as const },
+  themeToggle: { borderWidth: 1, borderColor: Colors.grayBorder, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.sm },
+  themeToggleText: { fontSize: 15, color: Colors.black, fontWeight: '600' as const },
+  empty: { textAlign: 'center' as const, color: Colors.grayText, marginTop: Spacing.md },
+  grid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, marginTop: Spacing.sm },
+  photoCard: { width: '48%' as const, margin: '1%' as const, borderRadius: Radius.md, overflow: 'hidden' as const, backgroundColor: Colors.cardBackground || Colors.grayBorder, marginBottom: Spacing.sm },
+  photoThumb: { width: '100%' as const, height: 110 },
   photoIngredients: { fontSize: 11, color: Colors.grayText, padding: Spacing.sm, paddingBottom: 2 },
-  deletePhotoButton: { padding: Spacing.sm, alignItems: 'center' },
-  deletePhotoText: { color: Colors.primary, fontSize: 12, fontWeight: '600' },
-  logoutButton: { marginTop: Spacing.xl, borderWidth: 1, borderColor: Colors.grayBorder, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' },
+  deletePhotoButton: { padding: Spacing.sm, alignItems: 'center' as const },
+  deletePhotoText: { color: Colors.primary, fontSize: 12, fontWeight: '600' as const },
+  logoutButton: { marginTop: Spacing.xl, borderWidth: 1, borderColor: Colors.grayBorder, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
   logoutText: { color: Colors.grayText, fontSize: 15 },
 })
