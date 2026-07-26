@@ -1,14 +1,4 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
+export const LightColors = {
   primary: '#C0392B',
   primaryLight: '#FADBD8',
   black: '#1A1A1A',
@@ -18,37 +8,55 @@ export const Colors = {
   grayBorder: '#E0E0E0',
   green: '#27AE60',
   background: '#FFFFFF',
+  cardBackground: '#FFFFFF',
+  inputBackground: '#FFFFFF',
 }
+
+export const DarkColors = {
+  primary: '#E74C3C',
+  primaryLight: '#4A1A1A',
+  black: '#FFFFFF',
+  white: '#1A1A1A',
+  gray: '#2A2A2A',
+  grayText: '#AAAAAA',
+  grayBorder: '#333333',
+  green: '#2ECC71',
+  background: '#121212',
+  cardBackground: '#1E1E1E',
+  inputBackground: '#2A2A2A',
+}
+
+export const Colors = LightColors
 
 export const Typography = {
   brandTitle: {
     fontSize: 48,
     fontWeight: '700' as const,
-    color: Colors.primary,
+    color: '#C0392B',
     fontStyle: 'italic' as const,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: Colors.primary,
+    color: '#C0392B',
     fontWeight: '400' as const,
   },
   heroTitle: {
     fontSize: 28,
     fontWeight: '700' as const,
-    color: Colors.primary,
+    color: '#C0392B',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700' as const,
-    color: Colors.black,
+    color: '#1A1A1A',
   },
   body: {
     fontSize: 14,
-    color: Colors.black,
+    color: '#1A1A1A',
   },
   caption: {
     fontSize: 12,
-    color: Colors.grayText,
+    color: '#888888',
   },
 }
 
