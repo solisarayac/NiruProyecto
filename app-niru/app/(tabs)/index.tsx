@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity,
   ActivityIndicator, FlatList, Image, ScrollView,
   ActionSheetIOS, Platform, Alert as RNAlert
 } from "react-native";
@@ -12,9 +12,10 @@ import RecipeCard from "../../components/RecipeCard";
 import RecipeDetailScreen from "../../screens/RecipeDetailScreen";
 import { savePhotoToHistory } from "../../services/photoHistory";
 import { getOrFetchRandomRecipes } from "../../services/randomRecipes";
-import { Colors, Spacing, Radius, Typography } from "../../constants/theme";
-import Toast from '../../components/Toast'
-import { useToast } from '../../hooks/useToast'
+import { Spacing, Radius, Typography } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
+import Toast from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 
 type Recipe = {
   id: number;
@@ -34,26 +35,30 @@ export default function HomeScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
-  const { toast, showToast, hideToast } = useToast()
+  // 1. Hook de tema y generación de estilos dinámicos
+  const { Colors } = useTheme();
+  const styles = getStyles(Colors);
 
-  useEffect(() => { loadSuggestions() }, [])
+  const { toast, showToast, hideToast } = useToast();
+
+  useEffect(() => { loadSuggestions() }, []);
 
   useFocusEffect(
     useCallback(() => { loadSavedIds() }, [])
-  )
+  );
 
   async function loadSavedIds() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data } = await supabase.from('saved_recipes').select('title').eq('user_id', user.id)
-    if (data) setSavedIds(new Set(data.map((r: any) => r.title)))
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('saved_recipes').select('title').eq('user_id', user.id);
+    if (data) setSavedIds(new Set(data.map((r: any) => r.title)));
   }
 
   async function loadSuggestions() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const recipes = await getOrFetchRandomRecipes(user.id)
-    setSuggestions(recipes)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const recipes = await getOrFetchRandomRecipes(user.id);
+    setSuggestions(recipes);
   }
 
   function handleScanPress() {
@@ -61,74 +66,74 @@ export default function HomeScreen() {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['Cancelar', 'Tomar foto', 'Elegir de galería'], cancelButtonIndex: 0 },
         (index) => {
-          if (index === 1) handleOpenCamera()
-          if (index === 2) handleOpenGallery()
+          if (index === 1) handleOpenCamera();
+          if (index === 2) handleOpenGallery();
         }
-      )
+      );
     } else {
       RNAlert.alert('Seleccionar imagen', '', [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Tomar foto', onPress: handleOpenCamera },
         { text: 'Elegir de galería', onPress: handleOpenGallery },
-      ])
+      ]);
     }
   }
 
   async function handleOpenCamera() {
-    const permission = await ImagePicker.requestCameraPermissionsAsync()
-    if (!permission.granted) return
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.3 })
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.3 });
     if (!result.canceled && result.assets[0].base64) {
-      processImage(result.assets[0].base64, result.assets[0].uri)
+      processImage(result.assets[0].base64, result.assets[0].uri);
     }
   }
 
   async function handleOpenGallery() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!permission.granted) return
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 })
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
     if (!result.canceled && result.assets[0].base64) {
-      processImage(result.assets[0].base64, result.assets[0].uri)
+      processImage(result.assets[0].base64, result.assets[0].uri);
     }
   }
 
   async function processImage(base64: string, uri: string) {
-    setLoading(true)
-    setRecipes([])
-    setImageCaptured(uri)
-    const { data: { user } } = await supabase.auth.getUser()
+    setLoading(true);
+    setRecipes([]);
+    setImageCaptured(uri);
+    const { data: { user } } = await supabase.auth.getUser();
     try {
-      const result = await detectIngredients(base64)
-      setIngredients(result.ingredients)
-      setRecipes(result.recipes)
-      if (user) await savePhotoToHistory(user.id, base64, result.ingredients)
+      const result = await detectIngredients(base64);
+      setIngredients(result.ingredients);
+      setRecipes(result.recipes);
+      if (user) await savePhotoToHistory(user.id, base64, result.ingredients);
     } catch (error: any) {
-      console.log("Error:", error)
-      if (user) await savePhotoToHistory(user.id, base64, "")
+      console.log("Error:", error);
+      if (user) await savePhotoToHistory(user.id, base64, "");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleSaveRecipe(recipe: Recipe) {
     if (savedIds.has(recipe.title)) {
-      showToast('Esta receta ya está guardada ⭐', 'info')
-      return
+      showToast('Esta receta ya está guardada ⭐', 'info');
+      return;
     }
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase.from("saved_recipes").insert({
       user_id: user.id, recipe_id: recipe.id, title: recipe.title,
       image: recipe.image, used: recipe.used.join(","), missing: recipe.missing.join(","),
-    })
+    });
     if (!error) {
-      setSavedIds(prev => new Set(prev).add(recipe.title))
-      showToast('Receta guardada', 'success')
+      setSavedIds(prev => new Set(prev).add(recipe.title));
+      showToast('Receta guardada', 'success');
     }
   }
 
-  if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />
-  if (selectedMock) return <RecipeDetailScreen recipe={selectedMock} onBack={() => setSelectedMock(null)} />
+  if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
+  if (selectedMock) return <RecipeDetailScreen recipe={selectedMock} onBack={() => setSelectedMock(null)} />;
 
   return (
     <View style={{ flex: 1 }}>
@@ -201,31 +206,32 @@ export default function HomeScreen() {
       </ScrollView>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
-  )
+  );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+// Function para generar estilos dinámicos
+const getStyles = (Colors: any) => ({
+  container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { paddingBottom: Spacing.xxl },
   hero: { padding: Spacing.lg, paddingTop: Spacing.xxl },
-  heroSub: { fontSize: 14, color: Colors.primary, textAlign: 'center' },
-  heroTitle: { fontSize: 28, fontWeight: '800', color: Colors.primary, textAlign: 'center', marginTop: 4 },
-  scanCard: { marginHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg },
-  scanLabel: { fontSize: 13, color: Colors.black, textAlign: 'center', marginBottom: Spacing.sm },
-  scanArea: { backgroundColor: Colors.primaryLight, borderRadius: Radius.md, padding: Spacing.xl, alignItems: 'center' },
+  heroSub: { fontSize: 14, color: Colors.primary, textAlign: 'center' as const },
+  heroTitle: { fontSize: 28, fontWeight: '800' as const, color: Colors.primary, textAlign: 'center' as const, marginTop: 4 },
+  scanCard: { marginHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.lg, backgroundColor: Colors.cardBackground },
+  scanLabel: { fontSize: 13, color: Colors.black, textAlign: 'center' as const, marginBottom: Spacing.sm },
+  scanArea: { backgroundColor: Colors.primaryLight, borderRadius: Radius.md, padding: Spacing.xl, alignItems: 'center' as const },
   cameraIcon: { fontSize: 48, marginBottom: Spacing.sm },
-  scanText: { fontSize: 14, color: Colors.black, fontWeight: '600', textAlign: 'center' },
-  scanSubText: { fontSize: 12, color: Colors.grayText, textAlign: 'center', marginTop: 4 },
-  retryButton: { borderWidth: 1, borderColor: Colors.primary, borderRadius: Radius.full, padding: Spacing.sm, alignItems: 'center', marginBottom: Spacing.sm },
-  retryText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
-  capturedImage: { width: '100%', height: 220, borderRadius: Radius.md, marginBottom: Spacing.sm },
+  scanText: { fontSize: 14, color: Colors.black, fontWeight: '600' as const, textAlign: 'center' as const },
+  scanSubText: { fontSize: 12, color: Colors.grayText, textAlign: 'center' as const, marginTop: 4 },
+  retryButton: { borderWidth: 1, borderColor: Colors.primary, borderRadius: Radius.full, padding: Spacing.sm, alignItems: 'center' as const, marginBottom: Spacing.sm },
+  retryText: { color: Colors.primary, fontWeight: '600' as const, fontSize: 14 },
+  capturedImage: { width: '100%' as const, height: 220, borderRadius: Radius.md, marginBottom: Spacing.sm },
   ingredientsText: { fontSize: 13, color: Colors.black, marginTop: Spacing.sm },
-  loadingContainer: { alignItems: 'center', padding: Spacing.lg },
+  loadingContainer: { alignItems: 'center' as const, padding: Spacing.lg },
   loadingText: { color: Colors.grayText, marginTop: Spacing.sm, fontSize: 13 },
   section: { paddingHorizontal: Spacing.md, marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: Colors.primary, marginBottom: Spacing.md },
-  suggestionCard: { width: 160, marginRight: Spacing.sm, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.grayBorder },
-  suggestionImage: { width: '100%', height: 110 },
-  suggestionTitle: { fontSize: 13, fontWeight: '600', color: Colors.black, padding: Spacing.sm, paddingBottom: 2 },
+  sectionTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.primary, marginBottom: Spacing.md },
+  suggestionCard: { width: 160, marginRight: Spacing.sm, borderRadius: Radius.md, overflow: 'hidden' as const, backgroundColor: Colors.cardBackground, borderWidth: 1, borderColor: Colors.grayBorder },
+  suggestionImage: { width: '100%' as const, height: 110 },
+  suggestionTitle: { fontSize: 13, fontWeight: '600' as const, color: Colors.black, padding: Spacing.sm, paddingBottom: 2 },
   suggestionFav: { fontSize: 11, color: Colors.green, paddingHorizontal: Spacing.sm, paddingBottom: Spacing.sm },
-})
+});

@@ -5,12 +5,13 @@ import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../services/supabase'
 import { Session } from '@supabase/supabase-js'
 import LoginScreen from '../screens/LoginScreen'
+import { ThemeProvider } from '../context/ThemeContext' // 1. Importación agregada
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 2. Ref para la animación de opacidad
+  // Ref para la animación de opacidad
   const fadeAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function RootLayout() {
     })
   }, [])
 
-  // 2. Efecto para disparar la animación cuando hay sesión
+  // Efecto para disparar la animación cuando hay sesión
   useEffect(() => {
     if (session) {
       Animated.timing(fadeAnim, {
@@ -33,21 +34,27 @@ export default function RootLayout() {
         useNativeDriver: true,
       }).start()
     } else {
-      // Opcional: resetear la animación si se cierra sesión
       fadeAnim.setValue(0)
     }
   }, [session])
 
   if (loading) return null
-  if (!session) return <LoginScreen />
 
-  // 3. Return reemplazado con Animated.View para el efecto de entrada
+  // 2. Returns envolviendo LoginScreen y la vista animada con ThemeProvider
+  if (!session) return (
+    <ThemeProvider>
+      <LoginScreen />
+    </ThemeProvider>
+  )
+
   return (
-    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </Animated.View>
+    <ThemeProvider>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </Animated.View>
+    </ThemeProvider>
   )
 }
