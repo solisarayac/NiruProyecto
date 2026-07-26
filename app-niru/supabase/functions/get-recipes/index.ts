@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts"
 
 const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? ""
 const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? ""
-const RESULTS_LIMIT = 1
+const RESULTS_LIMIT = 10
 
 async function detectLabels(base64: string): Promise<string[]> {
   const response = await fetch(
@@ -94,6 +94,30 @@ Deno.serve(async (req) => {
       const steps = await getInstructions(recipeId)
       return new Response(
         JSON.stringify({ steps }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    }
+
+    if (action === 'findByIngredients') {
+      const { ingredients } = body
+      if (!ingredients) {
+        return new Response(
+          JSON.stringify({ error: "ingredients requerido" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      }
+      const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredients}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`
+      const response = await fetch(recipesUrl)
+      const data = await response.json()
+      const recipes = data.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        image: r.image,
+        used: r.usedIngredients.map((i: any) => i.name),
+        missing: r.missedIngredients.map((i: any) => i.name),
+      }))
+      return new Response(
+        JSON.stringify({ ingredients, recipes }),
         { headers: { "Content-Type": "application/json" } }
       )
     }
