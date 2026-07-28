@@ -17,6 +17,7 @@ import { useTheme } from "../../context/ThemeContext";
 import Toast from '../../components/Toast';
 import { useToast } from '../../hooks/useToast';
 import HomeSkeleton from '../../components/skeletons/HomeSkeleton';
+import { addIngredients } from '../../services/shoppingList'
 
 type Recipe = {
   id: number;
@@ -89,7 +90,7 @@ export default function HomeScreen() {
   async function handleOpenCamera() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return;
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.3 });
+    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.2 });
     if (!result.canceled && result.assets[0].base64) {
       processImage(result.assets[0].base64, result.assets[0].uri);
     }
@@ -98,7 +99,7 @@ export default function HomeScreen() {
   async function handleOpenGallery() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
+    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.2 });
     if (!result.canceled && result.assets[0].base64) {
       processImage(result.assets[0].base64, result.assets[0].uri);
     }
@@ -144,22 +145,34 @@ export default function HomeScreen() {
     setIngredientTags(prev => prev.filter(t => t !== tag));
   }
 
-  async function handleSaveRecipe(recipe: Recipe) {
-    if (savedIds.has(recipe.title)) {
-      showToast('Esta receta ya está guardada ⭐', 'info');
-      return;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from("saved_recipes").insert({
-      user_id: user.id, recipe_id: recipe.id, title: recipe.title,
-      image: recipe.image, used: recipe.used.join(","), missing: recipe.missing.join(","),
-    });
-    if (!error) {
-      setSavedIds(prev => new Set(prev).add(recipe.title));
-      showToast('Receta guardada', 'success');
-    }
+async function handleSaveRecipe(recipe: Recipe) {
+  if (savedIds.has(recipe.title)) {
+    showToast('Esta receta ya está guardada ⭐', 'info');
+    return;
   }
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabase.from("saved_recipes").insert({
+    user_id: user.id, 
+    recipe_id: recipe.id, 
+    title: recipe.title,
+    image: recipe.image, 
+    used: recipe.used.join(","), 
+    missing: recipe.missing.join(","),
+  });
+
+  if (!error) {
+    setSavedIds(prev => new Set(prev).add(recipe.title));
+
+    if (recipe.missing && recipe.missing.length > 0) {
+      await addIngredients(user.id, recipe.missing);
+    }
+
+    showToast('Receta guardada', 'success');
+  }
+}
 
   if (initialLoading) return <HomeSkeleton />;
   if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
