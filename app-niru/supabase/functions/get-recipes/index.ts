@@ -26,7 +26,7 @@ async function detectLabels(base64: string): Promise<string[]> {
   return labels.map((label: any) => label.description as string);
 }
 
-async function translateText(texts: string[]): Promise<string[]> {
+async function translateText(texts: string[], targetLang = "es"): Promise<string[]> {
   if (texts.length === 0) return [];
 
   const response = await fetch(
@@ -36,7 +36,7 @@ async function translateText(texts: string[]): Promise<string[]> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         q: texts,
-        target: "es",
+        target: targetLang,
         format: "text",
       }),
     },
@@ -94,12 +94,32 @@ async function getInstructions(recipeId: number): Promise<any[]> {
   }));
 
   const stepsText = steps.map((s: any) => s.step);
-  const translated = await translateText(stepsText);
+  const translated = await translateText(stepsText, "es");
 
   return steps.map((s: any, i: number) => ({
     number: s.number,
     step: translated[i] ?? s.step,
   }));
+}
+
+async function translateRecipes(rawRecipes: any[]) {
+  const allTexts: string[] = [];
+  for (const r of rawRecipes) {
+    allTexts.push(r.title);
+    allTexts.push(...r.used);
+    allTexts.push(...r.missing);
+  }
+
+  const translated = await translateText(allTexts, "es");
+
+  let idx = 0;
+  return rawRecipes.map((r: any) => {
+    const rawTitle = translated[idx++] ?? r.title;
+    const title = rawTitle.replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const used = r.used.map(() => translated[idx++] ?? "");
+    const missing = r.missing.map(() => translated[idx++] ?? "");
+    return { id: r.id, title, image: r.image, used, missing };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -137,7 +157,12 @@ Deno.serve(async (req) => {
           { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
-      const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredients}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
+
+      const inputArr = ingredients.split(",").map((s: string) => s.trim());
+      const englishIngredientsArr = await translateText(inputArr, "en");
+      const englishIngredientsString = englishIngredientsArr.join(",");
+
+      const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
       const response = await fetch(recipesUrl);
       const data = await response.json();
 
@@ -149,21 +174,7 @@ Deno.serve(async (req) => {
         missing: r.missedIngredients?.map((i: any) => i.name) ?? [],
       }));
 
-      const titles = rawRecipes.map((r: any) => r.title);
-      const allUsed = rawRecipes.flatMap((r: any) => r.used);
-      const allMissing = rawRecipes.flatMap((r: any) => r.missing);
-      const allTexts = [...titles, ...allUsed, ...allMissing];
-
-      const translated = await translateText(allTexts);
-
-      let idx = 0;
-      const recipes = rawRecipes.map((r: any) => {
-        const rawTitle = translated[idx++] ?? "";
-        const title = rawTitle.replace(/\b\w/g, (c: string) => c.toUpperCase());
-        const used = r.used.map(() => translated[idx++]);
-        const missing = r.missing.map(() => translated[idx++]);
-        return { id: r.id, title, image: r.image, used, missing };
-      });
+      const recipes = await translateRecipes(rawRecipes);
 
       return new Response(JSON.stringify({ ingredients, recipes }), {
         headers: { "Content-Type": "application/json" },
@@ -183,8 +194,7 @@ Deno.serve(async (req) => {
     console.log("Labels crudos:", labels);
 
     const ingredients = await filterValidIngredients(labels);
-    const ingredientsTranslated = await translateText(ingredients);
-    console.log("Ingredientes validados:", ingredients);
+    console.log("Ingredientes validados (EN):", ingredients);
 
     if (ingredients.length === 0) {
       return new Response(
@@ -194,7 +204,7 @@ Deno.serve(async (req) => {
     }
 
     const ingredientsString = ingredients.join(",");
-    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientsString}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
+    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(ingredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
     const response = await fetch(recipesUrl);
     const data = await response.json();
 
@@ -206,22 +216,8 @@ Deno.serve(async (req) => {
       missing: r.missedIngredients?.map((i: any) => i.name) ?? [],
     }));
 
-    const titles = rawRecipes.map((r: any) => r.title);
-    const allUsed = rawRecipes.flatMap((r: any) => r.used);
-    const allMissing = rawRecipes.flatMap((r: any) => r.missing);
-    const allTexts = [...titles, ...allUsed, ...allMissing];
-
-    const translated = await translateText(allTexts);
-
-    let idx = 0;
-    const recipes = rawRecipes.map((r: any) => {
-      const rawTitle = translated[idx++] ?? "";
-      const title = rawTitle.replace(/\b\w/g, (c: string) => c.toUpperCase());
-      const used = r.used.map(() => translated[idx++]);
-      const missing = r.missing.map(() => translated[idx++]);
-      return { id: r.id, title, image: r.image, used, missing };
-    });
-
+    const recipes = await translateRecipes(rawRecipes);
+    const ingredientsTranslated = await translateText(ingredients, "es");
     const ingredientsTranslatedString = ingredientsTranslated.join(",");
 
     return new Response(
