@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 
 const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? "";
 const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? "";
-const RESULTS_LIMIT = 6;
+const RESULTS_LIMIT = 2;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
