@@ -10,6 +10,8 @@ type Recipe = { id: number; title: string; image: string; used: string[]; missin
 export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe; onBack: () => void }) {
   const [steps, setSteps] = useState<Step[]>([])
   const [loading, setLoading] = useState(true)
+  const [nutrition, setNutrition] = useState<any | null>(null)
+  const [nutritionLoading, setNutritionLoading] = useState(false)
 
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
@@ -30,6 +32,21 @@ export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe;
     }
   }
 
+  async function fetchNutrition() {
+    setNutritionLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('get-recipes', {
+        body: { action: 'nutrition', recipeId: recipe.id }
+      })
+      if (error) throw error
+      if (data?.nutrition) setNutrition(data.nutrition)
+    } catch (error) {
+      console.log('Error cargando nutrición:', error)
+    } finally {
+      setNutritionLoading(false)
+    }
+  }
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -46,6 +63,45 @@ export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe;
             <View style={styles.content}>
               <Text style={styles.title}>{recipe.title}</Text>
               <Text style={styles.sectionTitle}>Preparación</Text>
+
+              {!nutrition && !nutritionLoading && steps.length > 0 && (
+                <TouchableOpacity style={styles.nutritionButton} onPress={fetchNutrition}>
+                  <Text style={styles.nutritionButtonText}>🥗 Ver información nutricional</Text>
+                </TouchableOpacity>
+              )}
+
+              {nutritionLoading && (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ marginBottom: Spacing.lg }} />
+              )}
+
+              {nutrition && (
+                <View style={styles.nutritionContainer}>
+                  <Text style={styles.nutritionTitle}>Información nutricional</Text>
+                  <View style={styles.nutritionRow}>
+                    <View style={styles.nutritionCard}>
+                      <Text style={styles.nutritionIcon}>🔥</Text>
+                      <Text style={styles.nutritionValue}>{nutrition.calories}</Text>
+                      <Text style={styles.nutritionLabel}>kcal</Text>
+                    </View>
+                    <View style={styles.nutritionCard}>
+                      <Text style={styles.nutritionIcon}>💪</Text>
+                      <Text style={styles.nutritionValue}>{nutrition.protein}</Text>
+                      <Text style={styles.nutritionLabel}>Proteína</Text>
+                    </View>
+                    <View style={styles.nutritionCard}>
+                      <Text style={styles.nutritionIcon}>🌾</Text>
+                      <Text style={styles.nutritionValue}>{nutrition.carbs}</Text>
+                      <Text style={styles.nutritionLabel}>Carbos</Text>
+                    </View>
+                    <View style={styles.nutritionCard}>
+                      <Text style={styles.nutritionIcon}>🧈</Text>
+                      <Text style={styles.nutritionValue}>{nutrition.fat}</Text>
+                      <Text style={styles.nutritionLabel}>Grasas</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
               {loading && <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: Spacing.lg }} />}
               {!loading && steps.length === 0 && (
                 <Text style={styles.noSteps}>No hay instrucciones disponibles para esta receta.</Text>
@@ -82,4 +138,14 @@ const getStyles = (Colors: any) => ({
   stepNumber: { color: Colors.white, fontWeight: '700' as const, fontSize: 16 },
   stepText: { flex: 1, fontSize: 15, color: Colors.black, lineHeight: 24, paddingTop: Spacing.sm },
   list: { paddingBottom: Spacing.xxl },
+
+  nutritionButton: { backgroundColor: Colors.primaryLight, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.lg },
+  nutritionButtonText: { color: Colors.primary, fontWeight: '700' as const, fontSize: 14 },
+  nutritionContainer: { marginBottom: Spacing.lg },
+  nutritionTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
+  nutritionRow: { flexDirection: 'row' as const, gap: Spacing.sm },
+  nutritionCard: { flex: 1, backgroundColor: Colors.gray, borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' as const },
+  nutritionIcon: { fontSize: 20, marginBottom: 4 },
+  nutritionValue: { fontSize: 15, fontWeight: '700' as const, color: Colors.black },
+  nutritionLabel: { fontSize: 11, color: Colors.grayText, marginTop: 2 },
 })
