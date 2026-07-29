@@ -2,7 +2,19 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 
 const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? "";
 const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? "";
-const RESULTS_LIMIT = 2;
+const RESULTS_LIMIT = 6;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function jsonResponse(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 async function detectLabels(base64: string): Promise<string[]> {
   const response = await fetch(
@@ -21,7 +33,6 @@ async function detectLabels(base64: string): Promise<string[]> {
     },
   );
   const data = await response.json();
-  console.log("Vision response:", JSON.stringify(data));
   const labels = data.responses[0]?.labelAnnotations || [];
   return labels.map((label: any) => label.description as string);
 }
@@ -119,8 +130,8 @@ async function translateRecipes(rawRecipes: any[]) {
   const allTexts: string[] = [];
   for (const r of rawRecipes) {
     allTexts.push(r.title);
-    allTexts.push(...r.used);
-    allTexts.push(...r.missing);
+    if (r.used) allTexts.push(...r.used);
+    if (r.missing) allTexts.push(...r.missing);
   }
 
   const translated = await translateText(allTexts, "es");
@@ -129,61 +140,101 @@ async function translateRecipes(rawRecipes: any[]) {
   return rawRecipes.map((r: any) => {
     const rawTitle = translated[idx++] ?? r.title;
     const title = rawTitle.replace(/\b\w/g, (c: string) => c.toUpperCase());
-    const used = r.used.map(() => translated[idx++] ?? "");
-    const missing = r.missing.map(() => translated[idx++] ?? "");
+    const used = r.used ? r.used.map(() => translated[idx++] ?? "") : [];
+    const missing = r.missing ? r.missing.map(() => translated[idx++] ?? "") : [];
     return { id: r.id, title, image: r.image, used, missing };
   });
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
-    console.log("--- Inicio de request ---");
+    console.log("--- Inicio de request --- Método:", req.method);
     const body = await req.json().catch(() => ({}));
+    console.log("Body recibido:", JSON.stringify(body));
+
     const action = body?.action;
 
     if (action === "random") {
       const recipes = await getRandomRecipes();
-      return new Response(JSON.stringify({ recipes }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ recipes });
     }
 
     if (action === "instructions") {
       const { recipeId } = body;
       if (!recipeId) {
-        return new Response(JSON.stringify({ error: "recipeId requerido" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return jsonResponse({ error: "recipeId requerido" }, 400);
       }
       const steps = await getInstructions(recipeId);
-      return new Response(JSON.stringify({ steps }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ steps });
     }
 
     if (action === "nutrition") {
       const { recipeId } = body;
       if (!recipeId) {
-        return new Response(
-          JSON.stringify({ error: "recipeId requerido" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
+        return jsonResponse({ error: "recipeId requerido" }, 400);
       }
       const nutrition = await getNutrition(recipeId);
-      return new Response(
-        JSON.stringify({ nutrition }),
-        { headers: { "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ nutrition });
+    }
+
+    // Acción enviada por el buscador por texto
+    if (action === "search") {
+      const { query, diet, excludeIngredients, sort } = body;
+      console.log("Procesando búsqueda:", { query, diet, excludeIngredients, sort });
+
+      let englishQuery = query || "";
+      if (englishQuery) {
+        try {
+          const translated = await translateText([englishQuery], "en");
+          englishQuery = translated[0] || englishQuery;
+        } catch (e) {
+          console.error("Error traduciendo consulta:", e);
+        }
+      }
+
+      const params = new URLSearchParams({
+        apiKey: SPOONACULAR_KEY,
+        number: String(RESULTS_LIMIT),
+      });
+
+      if (englishQuery) params.append("query", englishQuery);
+      if (diet) params.append("diet", diet);
+      if (excludeIngredients) params.append("excludeIngredients", excludeIngredients);
+      if (sort) params.append("sort", sort);
+
+      const url = `https://api.spoonacular.com/recipes/complexSearch?${params.toString()}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      console.log("Respuesta de Spoonacular:", JSON.stringify(data));
+
+      if (!data.results || !Array.isArray(data.results)) {
+        return jsonResponse({
+          recipes: [],
+          error: data?.message || "Error al buscar recetas en Spoonacular",
+        });
+      }
+
+      const rawRecipes = data.results.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        image: r.image,
+        used: [],
+        missing: [],
+      }));
+
+      const recipes = await translateRecipes(rawRecipes);
+      return jsonResponse({ recipes });
     }
 
     if (action === "findByIngredients") {
       const { ingredients } = body;
-      if (!ingredients) {
-        return new Response(
-          JSON.stringify({ error: "ingredients requerido" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
+      if (!ingredients || typeof ingredients !== "string") {
+        return jsonResponse({ error: "ingredients es requerido" }, 400);
       }
 
       const inputArr = ingredients.split(",").map((s: string) => s.trim());
@@ -194,7 +245,11 @@ Deno.serve(async (req) => {
       const response = await fetch(recipesUrl);
       const data = await response.json();
 
-      const rawRecipes = (data ?? []).map((r: any) => ({
+      if (!Array.isArray(data)) {
+        return jsonResponse({ error: "Error en la API de Spoonacular", details: data }, 400);
+      }
+
+      const rawRecipes = data.map((r: any) => ({
         id: r.id,
         title: r.title,
         image: r.image,
@@ -203,32 +258,20 @@ Deno.serve(async (req) => {
       }));
 
       const recipes = await translateRecipes(rawRecipes);
-
-      return new Response(JSON.stringify({ ingredients, recipes }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ ingredients, recipes });
     }
 
     const { base64 } = body;
 
     if (!base64) {
-      return new Response(JSON.stringify({ error: "base64 requerido" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "base64 o action válida requerida" }, 400);
     }
 
     const labels = await detectLabels(base64);
-    console.log("Labels crudos:", labels);
-
     const ingredients = await filterValidIngredients(labels);
-    console.log("Ingredientes validados (EN):", ingredients);
 
     if (ingredients.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No se detectaron ingredientes válidos" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "No se detectaron ingredientes válidos" }, 400);
     }
 
     const ingredientsString = ingredients.join(",");
@@ -246,17 +289,10 @@ Deno.serve(async (req) => {
 
     const recipes = await translateRecipes(rawRecipes);
     const ingredientsTranslated = await translateText(ingredients, "es");
-    const ingredientsTranslatedString = ingredientsTranslated.join(",");
 
-    return new Response(
-      JSON.stringify({ ingredients: ingredientsTranslatedString, recipes }),
-      { headers: { "Content-Type": "application/json" } },
-    );
+    return jsonResponse({ ingredients: ingredientsTranslated.join(","), recipes });
   } catch (err) {
     console.error("Error atrapado en catch:", err);
-    return new Response(JSON.stringify({ error: "Error interno: " + err }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Error interno: " + err }, 500);
   }
 });
