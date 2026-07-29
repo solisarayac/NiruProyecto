@@ -102,6 +102,19 @@ async function getInstructions(recipeId: number): Promise<any[]> {
   }));
 }
 
+async function getNutrition(recipeId: number): Promise<any> {
+  const response = await fetch(
+    `https://api.spoonacular.com/recipes/${recipeId}/nutritionWidget.json?apiKey=${SPOONACULAR_KEY}`,
+  );
+  const data = await response.json();
+  return {
+    calories: Math.round(data.calories ?? 0),
+    protein: data.protein ?? "0g",
+    carbs: data.carbs ?? "0g",
+    fat: data.fat ?? "0g",
+  };
+}
+
 async function translateRecipes(rawRecipes: any[]) {
   const allTexts: string[] = [];
   for (const r of rawRecipes) {
@@ -147,6 +160,21 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ steps }), {
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    if (action === "nutrition") {
+      const { recipeId } = body;
+      if (!recipeId) {
+        return new Response(
+          JSON.stringify({ error: "recipeId requerido" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      const nutrition = await getNutrition(recipeId);
+      return new Response(
+        JSON.stringify({ nutrition }),
+        { headers: { "Content-Type": "application/json" } },
+      );
     }
 
     if (action === "findByIngredients") {
