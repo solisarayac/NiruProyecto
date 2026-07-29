@@ -17,7 +17,7 @@ import { useTheme } from "../../context/ThemeContext";
 import Toast from '../../components/Toast';
 import { useToast } from '../../hooks/useToast';
 import HomeSkeleton from '../../components/skeletons/HomeSkeleton';
-import { addIngredients } from '../../services/shoppingList'
+import { addIngredients } from '../../services/shoppingList';
 
 type Recipe = {
   id: number;
@@ -30,6 +30,7 @@ type Recipe = {
 export default function HomeScreen() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Analizando imagen...');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<string | null>(null);
   const [imageCaptured, setImageCaptured] = useState<string | null>(null);
@@ -107,17 +108,24 @@ export default function HomeScreen() {
 
   async function processImage(base64: string, uri: string) {
     setLoading(true);
+    setLoadingMessage('Analizando imagen...');
     setRecipes([]);
     setIngredientTags([]);
     setShowTags(false);
     setImageCaptured(uri);
+    
     const { data: { user } } = await supabase.auth.getUser();
+
     try {
+      setLoadingMessage('Detectando ingredientes...');
       const result = await detectIngredients(base64);
+
+      setLoadingMessage('Buscando recetas para vos...');
       const tags = result.ingredients.split(',').filter((i: string) => i.trim() !== '');
       setIngredientTags(tags);
       setIngredients(result.ingredients);
       setShowTags(true);
+
       if (user) await savePhotoToHistory(user.id, base64, result.ingredients);
     } catch (error: any) {
       console.log("Error:", error);
@@ -130,6 +138,7 @@ export default function HomeScreen() {
   async function handleSearchWithTags() {
     if (ingredientTags.length === 0) return;
     setLoading(true);
+    setLoadingMessage('Buscando recetas para vos...');
     setShowTags(false);
     try {
       const result = await detectIngredients(undefined, ingredientTags.join(','));
@@ -145,34 +154,34 @@ export default function HomeScreen() {
     setIngredientTags(prev => prev.filter(t => t !== tag));
   }
 
-async function handleSaveRecipe(recipe: Recipe) {
-  if (savedIds.has(recipe.title)) {
-    showToast('Esta receta ya está guardada ⭐', 'info');
-    return;
-  }
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-
-  const { error } = await supabase.from("saved_recipes").insert({
-    user_id: user.id, 
-    recipe_id: recipe.id, 
-    title: recipe.title,
-    image: recipe.image, 
-    used: recipe.used.join(","), 
-    missing: recipe.missing.join(","),
-  });
-
-  if (!error) {
-    setSavedIds(prev => new Set(prev).add(recipe.title));
-
-    if (recipe.missing && recipe.missing.length > 0) {
-      await addIngredients(user.id, recipe.missing);
+  async function handleSaveRecipe(recipe: Recipe) {
+    if (savedIds.has(recipe.title)) {
+      showToast('Esta receta ya está guardada ⭐', 'info');
+      return;
     }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    showToast('Receta guardada', 'success');
+    const { error } = await supabase.from("saved_recipes").insert({
+      user_id: user.id, 
+      recipe_id: recipe.id, 
+      title: recipe.title,
+      image: recipe.image, 
+      used: recipe.used.join(","), 
+      missing: recipe.missing.join(","),
+    });
+
+    if (!error) {
+      setSavedIds(prev => new Set(prev).add(recipe.title));
+
+      if (recipe.missing && recipe.missing.length > 0) {
+        await addIngredients(user.id, recipe.missing);
+      }
+
+      showToast('Receta guardada', 'success');
+    }
   }
-}
 
   if (initialLoading) return <HomeSkeleton />;
   if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
@@ -238,7 +247,7 @@ async function handleSaveRecipe(recipe: Recipe) {
           {loading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.loadingText}>Analizando ingredientes...</Text>
+              <Text style={styles.loadingText}>{loadingMessage}</Text>
             </View>
           )}
         </View>
