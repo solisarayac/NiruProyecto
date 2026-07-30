@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import ProfileSkeleton from '../components/skeletons/ProfileSkeleton'
+import ConfirmModal from '../components/ConfirmModal'
 
 type PhotoHistory = {
   id: string
@@ -30,7 +31,9 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [showForgotLink, setShowForgotLink] = useState(false)
+  const [showForgotModal, setShowForgotModal] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [photoToDelete, setPhotoToDelete] = useState<{ id: string; url: string } | null>(null)
   const [userEmail, setUserEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -106,7 +109,7 @@ export default function ProfileScreen() {
     if (signInError) {
       showToast('Contraseña actual incorrecta', 'error')
       setLoading(false)
-      setShowForgotLink(true)
+      setShowForgotModal(true)
       return
     }
 
@@ -123,17 +126,32 @@ export default function ProfileScreen() {
       showToast('Contraseña actualizada', 'success')
       setCurrentPassword('')
       setNewPassword('')
-      setShowForgotLink(false)
     }
   }
 
-  async function handleDeletePhoto(id: string, photoUrl: string) {
-    const success = await deletePhotoFromHistory(id, photoUrl)
-    if (success) setPhotoHistory(prev => prev.filter(p => p.id !== id))
-    else Alert.alert('Error', 'No se pudo eliminar la foto')
+  async function handleSendRecovery() {
+    await supabase.auth.resetPasswordForEmail(userEmail)
+    setShowForgotModal(false)
+    showToast('Correo de recuperación enviado', 'success')
+  }
+
+  function handleDeletePhoto(id: string, photoUrl: string) {
+    setPhotoToDelete({ id, url: photoUrl })
+  }
+
+  async function confirmDeletePhoto() {
+    if (!photoToDelete) return
+    const success = await deletePhotoFromHistory(photoToDelete.id, photoToDelete.url)
+    if (success) setPhotoHistory(prev => prev.filter(p => p.id !== photoToDelete.id))
+    else showToast('No se pudo eliminar la foto', 'error')
+    setPhotoToDelete(null)
   }
 
   async function handleLogout() {
+    setShowLogoutModal(true)
+  }
+
+  async function confirmLogout() {
     await supabase.auth.signOut()
   }
 
@@ -168,19 +186,6 @@ export default function ProfileScreen() {
           secureTextEntry
           placeholderTextColor={Colors.grayText}
         />
-
-        {showForgotLink && (
-          <TouchableOpacity
-            onPress={async () => {
-              await supabase.auth.resetPasswordForEmail(userEmail)
-              showToast('Correo de recuperación enviado', 'success')
-              setShowForgotLink(false)
-            }}
-          >
-            <Text style={styles.forgotLink}>¿Olvidaste tu contraseña? Recuperala aquí</Text>
-          </TouchableOpacity>
-        )}
-
         <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholderTextColor={Colors.grayText} />
         <TouchableOpacity style={styles.buttonOutline} onPress={handleChangePassword} disabled={loading}>
           <Text style={styles.buttonOutlineText}>Actualizar contraseña</Text>
@@ -212,7 +217,38 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
+
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
+
+      <ConfirmModal
+        visible={showForgotModal}
+        title="¿Olvidaste tu contraseña?"
+        message="Te enviaremos un correo para que puedas restablecerla de forma segura."
+        confirmText="Enviar correo"
+        cancelText="Cancelar"
+        onConfirm={handleSendRecovery}
+        onCancel={() => setShowForgotModal(false)}
+      />
+
+      <ConfirmModal
+        visible={showLogoutModal}
+        title="Cerrar sesión"
+        message="¿Seguro que querés cerrar sesión?"
+        confirmText="Cerrar sesión"
+        cancelText="Cancelar"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
+      />
+
+      <ConfirmModal
+        visible={photoToDelete !== null}
+        title="Eliminar foto"
+        message="¿Seguro que querés eliminar esta foto del historial?"
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={confirmDeletePhoto}
+        onCancel={() => setPhotoToDelete(null)}
+      />
     </View>
   )
 }
@@ -228,7 +264,6 @@ const getStyles = (Colors: any) => ({
   avatarLabel: { textAlign: 'center' as const, color: Colors.grayText, fontSize: 13, marginBottom: Spacing.lg },
   sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   input: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
-  forgotLink: { fontSize: 13, color: Colors.primary, fontWeight: '600' as const, marginBottom: Spacing.sm, marginTop: -Spacing.xs },
   button: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.sm },
   buttonText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
   buttonOutline: { borderWidth: 1, borderColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
