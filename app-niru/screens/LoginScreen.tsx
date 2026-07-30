@@ -15,6 +15,8 @@ import VerifyScreen from "./VerifyScreen"
 import ForgotPasswordScreen from "./ForgotPasswordScreen"
 import { Typography, Spacing, Radius } from "../constants/theme"
 import { useTheme } from "../context/ThemeContext"
+import Toast from "../components/Toast"
+import { useToast } from "../hooks/useToast"
 
 function validatePassword(password: string): string | null {
   if (password.length < 8)
@@ -37,9 +39,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [pendingVerification, setPendingVerification] = useState(false)
   const [forgotPassword, setForgotPassword] = useState(false)
+  
+  // Estado para medir el ancho del switch de forma responsive
+  const [toggleWidth, setToggleWidth] = useState(0)
 
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
+
+  const { toast, showToast, hideToast } = useToast()
 
   const toggleAnim = useRef(new Animated.Value(isRegistering ? 0 : 1)).current
 
@@ -86,16 +93,19 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email || !password) {
-      Alert.alert("Error", "Por favor ingresá email y contraseña")
+      showToast('Por favor ingresá email y contraseña', 'error')
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
-    if (error) Alert.alert("Error", error.message)
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        showToast('Email o contraseña incorrectos', 'error')
+      } else {
+        showToast(error.message, 'error')
+      }
+    }
   }
 
   async function handleRegister() {
@@ -153,7 +163,11 @@ export default function LoginScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.brand}>Niru</Text>
 
-      <View style={styles.toggleContainer}>
+      {/* Switch con onLayout para calcular el ancho real del dispositivo */}
+      <View
+        style={styles.toggleContainer}
+        onLayout={(e) => setToggleWidth(e.nativeEvent.layout.width)}
+      >
         <Animated.View
           style={[
             styles.toggleSlider,
@@ -162,7 +176,7 @@ export default function LoginScreen() {
                 {
                   translateX: toggleAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0, 150],
+                    outputRange: [0, toggleWidth ? (toggleWidth / 2) - 6 : 160],
                   }),
                 },
               ],
@@ -278,6 +292,11 @@ export default function LoginScreen() {
           </Text>
         </Text>
       )}
+
+      {/* Contenedor wrapper para posicionar el Toast más abajo en esta pantalla */}
+      <View style={styles.toastWrapper}>
+        <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
+      </View>
     </ScrollView>
   )
 }
@@ -302,4 +321,11 @@ const getStyles = (Colors: any) => ({
   buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' as const },
   forgotText: { marginTop: Spacing.md, fontSize: 13, color: Colors.grayText },
   forgotLink: { fontWeight: '700' as const, color: Colors.black },
+  toastWrapper: {
+    position: 'absolute' as const,
+    top: 600, 
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+  },
 })
