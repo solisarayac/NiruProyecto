@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [newPassword, setNewPassword] = useState('')
   const [showForgotModal, setShowForgotModal] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [showClearHistoryModal, setShowClearHistoryModal] = useState(false)
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; url: string } | null>(null)
   const [userEmail, setUserEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -147,6 +148,27 @@ export default function ProfileScreen() {
     setPhotoToDelete(null)
   }
 
+  async function handleClearHistory() {
+    if (!userId || photoHistory.length === 0) return
+    setHistoryLoading(true)
+    let allSuccess = true
+    for (const item of photoHistory) {
+      const success = await deletePhotoFromHistory(item.id, item.photo_url)
+      if (!success) allSuccess = false
+    }
+    if (allSuccess) {
+      setPhotoHistory([])
+      showToast('Historial eliminado', 'success')
+    } else {
+      if (userId) {
+        const history = await getPhotoHistory(userId)
+        setPhotoHistory(history)
+      }
+      showToast('No se pudieron eliminar algunas fotos', 'error')
+    }
+    setHistoryLoading(false)
+  }
+
   async function handleLogout() {
     setShowLogoutModal(true)
   }
@@ -196,7 +218,15 @@ export default function ProfileScreen() {
           <Text style={styles.themeToggleText}>{isDark ? '☀️ Cambiar a modo claro' : '🌙 Cambiar a modo oscuro'}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Historial de fotos</Text>
+        <View style={styles.historyHeader}>
+          <Text style={styles.sectionTitleNoMargin}>Historial de fotos</Text>
+          {photoHistory.length > 0 && (
+            <TouchableOpacity onPress={() => setShowClearHistoryModal(true)}>
+              <Text style={styles.clearHistorial}>Eliminar todo</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {historyLoading && <ActivityIndicator size="large" color={Colors.primary} />}
         {!historyLoading && photoHistory.length === 0 && (
           <Text style={styles.empty}>No hay fotos en tu historial todavía.</Text>
@@ -249,6 +279,16 @@ export default function ProfileScreen() {
         onConfirm={confirmDeletePhoto}
         onCancel={() => setPhotoToDelete(null)}
       />
+
+      <ConfirmModal
+        visible={showClearHistoryModal}
+        title="Eliminar historial"
+        message="¿Seguro que querés eliminar todas las fotos del historial? Esta acción no se puede deshacer."
+        confirmText="Eliminar todo"
+        cancelText="Cancelar"
+        onConfirm={async () => { setShowClearHistoryModal(false); await handleClearHistory() }}
+        onCancel={() => setShowClearHistoryModal(false)}
+      />
     </View>
   )
 }
@@ -263,6 +303,9 @@ const getStyles = (Colors: any) => ({
   avatarIcon: { fontSize: 40 },
   avatarLabel: { textAlign: 'center' as const, color: Colors.grayText, fontSize: 13, marginBottom: Spacing.lg },
   sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  sectionTitleNoMargin: { fontSize: 16, fontWeight: '700' as const, color: Colors.black },
+  historyHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  clearHistorial: { color: Colors.primary, fontSize: 13, fontWeight: '600' as const },
   input: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
   button: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.sm },
   buttonText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
