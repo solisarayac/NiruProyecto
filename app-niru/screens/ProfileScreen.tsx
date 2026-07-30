@@ -28,12 +28,15 @@ export default function ProfileScreen() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showForgotLink, setShowForgotLink] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [photoHistory, setPhotoHistory] = useState<PhotoHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
-  const [userId, setUserId  ] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const { Colors, toggleTheme, isDark } = useTheme()
   const styles = getStyles(Colors)
 
@@ -45,6 +48,7 @@ export default function ProfileScreen() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUserId(user.id)
+    setUserEmail(user.email ?? '')
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     if (data) { setFirstName(data.first_name || ''); setLastName(data.last_name || ''); setAvatarUrl(data.avatar_url || null) }
     setHistoryLoading(true)
@@ -81,12 +85,46 @@ export default function ProfileScreen() {
   }
 
   async function handleChangePassword() {
-    if (newPassword.length < 8) { Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres'); return }
+    if (!currentPassword) {
+      showToast('Ingresá tu contraseña actual', 'error')
+      return
+    }
+    if (newPassword.length < 8) {
+      showToast('La nueva contraseña debe tener al menos 8 caracteres', 'error')
+      return
+    }
+
     setLoading(true)
+
+    // Verificar contraseña actual
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user?.email ?? '',
+      password: currentPassword,
+    })
+
+    if (signInError) {
+      showToast('Contraseña actual incorrecta', 'error')
+      setLoading(false)
+      setShowForgotLink(true)
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setLoading(false)
-    if (error) showToast(error.message, 'error')
-    else { showToast('Contraseña actualizada', 'success'); setNewPassword('') }
+
+    if (error) {
+      if (error.message.includes('different')) {
+        showToast('La nueva contraseña debe ser diferente a la actual', 'error')
+      } else {
+        showToast(error.message, 'error')
+      }
+    } else {
+      showToast('Contraseña actualizada', 'success')
+      setCurrentPassword('')
+      setNewPassword('')
+      setShowForgotLink(false)
+    }
   }
 
   async function handleDeletePhoto(id: string, photoUrl: string) {
@@ -122,6 +160,27 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Cambiar contraseña</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Contraseña actual"
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          secureTextEntry
+          placeholderTextColor={Colors.grayText}
+        />
+
+        {showForgotLink && (
+          <TouchableOpacity
+            onPress={async () => {
+              await supabase.auth.resetPasswordForEmail(userEmail)
+              showToast('Correo de recuperación enviado', 'success')
+              setShowForgotLink(false)
+            }}
+          >
+            <Text style={styles.forgotLink}>¿Olvidaste tu contraseña? Recuperala aquí</Text>
+          </TouchableOpacity>
+        )}
+
         <TextInput style={styles.input} placeholder="Nueva contraseña" value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholderTextColor={Colors.grayText} />
         <TouchableOpacity style={styles.buttonOutline} onPress={handleChangePassword} disabled={loading}>
           <Text style={styles.buttonOutlineText}>Actualizar contraseña</Text>
@@ -169,6 +228,7 @@ const getStyles = (Colors: any) => ({
   avatarLabel: { textAlign: 'center' as const, color: Colors.grayText, fontSize: 13, marginBottom: Spacing.lg },
   sectionTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   input: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
+  forgotLink: { fontSize: 13, color: Colors.primary, fontWeight: '600' as const, marginBottom: Spacing.sm, marginTop: -Spacing.xs },
   button: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.sm },
   buttonText: { color: Colors.white, fontSize: 15, fontWeight: '700' as const },
   buttonOutline: { borderWidth: 1, borderColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
