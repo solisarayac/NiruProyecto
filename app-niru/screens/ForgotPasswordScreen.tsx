@@ -5,6 +5,7 @@ import { Spacing, Radius } from '../constants/theme'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useTheme } from '../context/ThemeContext'
+import ConfirmModal from '../components/ConfirmModal'
 
 export default function ForgotPasswordScreen({ onBack }: { onBack: () => void }) {
   const { Colors } = useTheme()
@@ -12,7 +13,7 @@ export default function ForgotPasswordScreen({ onBack }: { onBack: () => void })
 
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
+  const [showSentModal, setShowSentModal] = useState(false)
   const { toast, showToast, hideToast } = useToast()
 
   async function handleSend() {
@@ -23,7 +24,7 @@ export default function ForgotPasswordScreen({ onBack }: { onBack: () => void })
     if (error) {
       showToast('No se pudo enviar el correo', 'error')
     } else {
-      setSent(true)
+      setShowSentModal(true)
     }
   }
 
@@ -31,40 +32,38 @@ export default function ForgotPasswordScreen({ onBack }: { onBack: () => void })
     <View style={styles.container}>
       <Text style={styles.brand}>Niru</Text>
 
-      {!sent ? (
-        <>
-          <Text style={styles.title}>Recuperar contraseña</Text>
-          <Text style={styles.subtitle}>Ingresá tu correo y te enviaremos un link para restablecer tu contraseña.</Text>
+      <Text style={styles.title}>Recuperar contraseña</Text>
+      <Text style={styles.subtitle}>Ingresá tu correo y te enviaremos un link para restablecer tu contraseña.</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="correoelectrónico@dominio.com"
-            placeholderTextColor={Colors.grayText}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+      <TextInput
+        style={styles.input}
+        placeholder="correoelectrónico@dominio.com"
+        placeholderTextColor={Colors.grayText}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
 
-          <TouchableOpacity style={styles.button} onPress={handleSend} disabled={loading}>
-            <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar link'}</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <Text style={styles.title}>Revisá tu correo</Text>
-          <Text style={styles.subtitle}>
-            Enviamos un link de recuperación a{'\n'}
-            <Text style={styles.email}>{email}</Text>
-          </Text>
-        </>
-      )}
+      <TouchableOpacity style={styles.button} onPress={handleSend} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Enviando...' : 'Enviar link'}</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.backButton} onPress={onBack}>
         <Text style={styles.backText}>← Volver al inicio de sesión</Text>
       </TouchableOpacity>
 
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
+
+      <ConfirmModal
+        visible={showSentModal}
+        title="Correo enviado ✉️"
+        message={`Enviamos un link de recuperación a ${email}. Revisá tu bandeja de entrada.`}
+        confirmText="Entendido"
+        cancelText=""
+        onConfirm={() => { setShowSentModal(false); onBack() }}
+        onCancel={() => {}}
+      />
     </View>
   )
 }
@@ -74,7 +73,6 @@ const getStyles = (Colors: any) => ({
   brand: { fontSize: 48, fontWeight: '700' as const, fontStyle: 'italic' as const, color: Colors.primary, marginBottom: Spacing.xl },
   title: { fontSize: 22, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm, textAlign: 'center' as const },
   subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center' as const, marginBottom: Spacing.xl, lineHeight: 22 },
-  email: { fontWeight: '700' as const, color: Colors.primary },
   input: { width: '100%' as const, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, fontSize: 15, color: Colors.black, backgroundColor: Colors.inputBackground },
   button: { width: '100%' as const, backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.md },
   buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' as const },

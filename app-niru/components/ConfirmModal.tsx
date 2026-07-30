@@ -23,9 +23,11 @@ export default function ConfirmModal({ visible, title, message, confirmText, can
           <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
             <Text style={styles.confirmText}>{confirmText}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-            <Text style={styles.cancelText}>{cancelText}</Text>
-          </TouchableOpacity>
+      {cancelText !== '' && (
+        <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <Text style={styles.cancelText}>{cancelText}</Text>
+        </TouchableOpacity> 
+      )}
         </View>
       </View>
     </Modal>
