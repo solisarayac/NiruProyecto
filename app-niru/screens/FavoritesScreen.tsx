@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, FlatList } from "react-native";
+import { View, Text, FlatList, RefreshControl } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../services/supabase";
 import RecipeCard from "../components/RecipeCard";
@@ -22,6 +22,7 @@ type SavedRecipe = {
 export default function FavoritesScreen() {
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null);
 
   const { Colors } = useTheme();
@@ -36,18 +37,29 @@ export default function FavoritesScreen() {
   );
 
   async function fetchFavorites() {
-    setLoading(true);
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("saved_recipes")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+
     if (!error && data) setRecipes(data);
     setLoading(false);
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await fetchFavorites();
+    setRefreshing(false);
   }
 
   async function handleDelete(id: string) {
@@ -55,6 +67,7 @@ export default function FavoritesScreen() {
       .from("saved_recipes")
       .delete()
       .eq("id", id);
+
     if (!error) {
       setRecipes((prev) => prev.filter((r) => r.id !== id));
       showToast("Receta eliminada", "error");
@@ -70,7 +83,7 @@ export default function FavoritesScreen() {
     );
   }
 
-  if (loading) {
+  if (loading && !refreshing) {
     return <FavoritesSkeleton />;
   }
 
@@ -85,6 +98,14 @@ export default function FavoritesScreen() {
         data={recipes}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>❤️</Text>
