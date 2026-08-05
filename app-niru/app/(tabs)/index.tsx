@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TouchableOpacity,
   ActivityIndicator, FlatList, Image, ScrollView,
-  ActionSheetIOS, Platform, Alert as RNAlert
+  ActionSheetIOS, Platform, Alert as RNAlert,
+  Animated
 } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -19,6 +20,7 @@ import { useToast } from '../../hooks/useToast';
 import HomeSkeleton from '../../components/skeletons/HomeSkeleton';
 import { addIngredients } from '../../services/shoppingList';
 import { useReusePhoto } from '../../context/ReusePhotoContext';
+import { useFadeIn } from '../../hooks/useFadeIn';
 
 type Recipe = {
   id: number;
@@ -27,6 +29,19 @@ type Recipe = {
   used: string[];
   missing: string[];
 };
+
+function SuggestionCard({ item, onPress, Colors, styles }: any) {
+  const { opacity, translateY } = useFadeIn()
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      <TouchableOpacity style={styles.suggestionCard} onPress={() => onPress(item)}>
+        <Image source={{ uri: item.image }} style={styles.suggestionImage} />
+        <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.suggestionFav}>Favorito de los usuarios</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  )
+}
 
 export default function HomeScreen() {
   const [initialLoading, setInitialLoading] = useState(true);
@@ -299,11 +314,13 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Recetas Sugeridas</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {suggestions.map((item) => (
-                <TouchableOpacity key={item.id.toString()} style={styles.suggestionCard} onPress={() => setSelectedMock(item)}>
-                  <Image source={{ uri: item.image }} style={styles.suggestionImage} />
-                  <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
-                  <Text style={styles.suggestionFav}>Favorito de los usuarios</Text>
-                </TouchableOpacity>
+                <SuggestionCard
+                  key={item.id.toString()}
+                  item={item}
+                  onPress={setSelectedMock}
+                  Colors={Colors}
+                  styles={styles}
+                />
               ))}
             </ScrollView>
           </View>
