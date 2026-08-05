@@ -5,7 +5,8 @@ import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../services/supabase'
 import { Session } from '@supabase/supabase-js'
 import LoginScreen from '../screens/LoginScreen'
-import { ThemeProvider } from '../context/ThemeContext' // 1. Importación agregada
+import { ThemeProvider } from '../context/ThemeContext'
+import { ReusePhotoProvider } from '../context/ReusePhotoContext'
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null)
@@ -40,21 +41,25 @@ export default function RootLayout() {
 
   if (loading) return null
 
-  // 2. Returns envolviendo LoginScreen y la vista animada con ThemeProvider
+  // Returns envolviendo LoginScreen y la vista animada con ReusePhotoProvider y ThemeProvider
   if (!session) return (
-    <ThemeProvider>
-      <LoginScreen />
-    </ThemeProvider>
+    <ReusePhotoProvider>
+      <ThemeProvider>
+        <LoginScreen />
+      </ThemeProvider>
+    </ReusePhotoProvider>
   )
 
   return (
-    <ThemeProvider>
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </Animated.View>
-    </ThemeProvider>
+    <ReusePhotoProvider>
+      <ThemeProvider>
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </Animated.View>
+      </ThemeProvider>
+    </ReusePhotoProvider>
   )
 }

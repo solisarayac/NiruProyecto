@@ -4,7 +4,7 @@ import {
   ActivityIndicator, FlatList, Image, ScrollView,
   ActionSheetIOS, Platform, Alert as RNAlert
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../services/supabase";
 import { detectIngredients } from "../../services/visionService";
@@ -18,6 +18,7 @@ import Toast from '../../components/Toast';
 import { useToast } from '../../hooks/useToast';
 import HomeSkeleton from '../../components/skeletons/HomeSkeleton';
 import { addIngredients } from '../../services/shoppingList';
+import { useReusePhoto } from '../../context/ReusePhotoContext';
 
 type Recipe = {
   id: number;
@@ -43,6 +44,9 @@ export default function HomeScreen() {
   const [ingredientTags, setIngredientTags] = useState<string[]>([]);
   const [showTags, setShowTags] = useState(false);
 
+  // Hook de reuso de fotos
+  const { reusePhoto, setReusePhoto } = useReusePhoto();
+
   // Hook de tema
   const { Colors } = useTheme();
   const styles = getStyles(Colors);
@@ -53,6 +57,21 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => { loadSavedIds() }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (reusePhoto) {
+        setImageCaptured(reusePhoto.photo_url)
+        if (reusePhoto.ingredients) {
+          const tags = reusePhoto.ingredients.split(',').filter(i => i.trim() !== '')
+          setIngredientTags(tags)
+          setIngredients(reusePhoto.ingredients)
+          setShowTags(true)
+        }
+        setReusePhoto(null)
+      }
+    }, [reusePhoto])
   );
 
   async function loadSavedIds() {
@@ -245,9 +264,17 @@ export default function HomeScreen() {
           )}
 
           {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.loadingText}>{loadingMessage}</Text>
+            <View style={styles.scanningCard}>
+              <View style={styles.scanningIconContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+              </View>
+              <Text style={styles.scanningTitle}>{loadingMessage}</Text>
+              <Text style={styles.scanningSubtitle}>Esto puede tomar unos segundos...</Text>
+              <View style={styles.scanningDots}>
+                <Text style={styles.scanningDot}>●</Text>
+                <Text style={styles.scanningDot}>●</Text>
+                <Text style={styles.scanningDot}>●</Text>
+              </View>
             </View>
           )}
         </View>
@@ -319,4 +346,10 @@ const getStyles = (Colors: any) => ({
   tagRemove: { fontSize: 11, color: Colors.primary, fontWeight: '700' as const },
   searchButton: { backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const },
   searchButtonText: { color: Colors.white, fontWeight: '700' as const, fontSize: 14 },
+  scanningCard: { margin: Spacing.md, padding: Spacing.xl, borderRadius: Radius.lg, backgroundColor: Colors.cardBackground, borderWidth: 1, borderColor: Colors.grayBorder, alignItems: 'center' as const },
+  scanningIconContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: Colors.primaryLight, justifyContent: 'center' as const, alignItems: 'center' as const, marginBottom: Spacing.md },
+  scanningTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm, textAlign: 'center' as const },
+  scanningSubtitle: { fontSize: 13, color: Colors.grayText, textAlign: 'center' as const, marginBottom: Spacing.md },
+  scanningDots: { flexDirection: 'row' as const, gap: Spacing.sm },
+  scanningDot: { color: Colors.primary, fontSize: 10 },
 });

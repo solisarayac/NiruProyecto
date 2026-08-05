@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, TextInput, Image, Alert, ScrollView, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, router } from 'expo-router'
 import { supabase } from '../services/supabase'
 import { getPhotoHistory, deletePhotoFromHistory } from '../services/photoHistory'
 import { Spacing, Radius, Typography } from '../constants/theme'
 import { useTheme } from '../context/ThemeContext'
+import { useReusePhoto } from '../context/ReusePhotoContext'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import ProfileSkeleton from '../components/skeletons/ProfileSkeleton'
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const { Colors, toggleTheme, isDark } = useTheme()
+  const { setReusePhoto } = useReusePhoto()
   const styles = getStyles(Colors)
 
   const { toast, showToast, hideToast } = useToast()
@@ -62,6 +64,11 @@ export default function ProfileScreen() {
     setPhotoHistory(history)
     setHistoryLoading(false)
     setInitialLoading(false)
+  }
+
+  function handleReusePhoto(photo_url: string, ingredients: string) {
+    setReusePhoto({ photo_url, ingredients })
+    router.push('/')
   }
 
   async function handleRefresh() {
@@ -257,7 +264,9 @@ export default function ProfileScreen() {
         <View style={styles.grid}>
           {photoHistory.map(item => (
             <View key={item.id} style={styles.photoCard}>
-              <Image source={{ uri: item.photo_url }} style={styles.photoThumb} />
+              <TouchableOpacity onPress={() => handleReusePhoto(item.photo_url, item.ingredients)}>
+                <Image source={{ uri: item.photo_url }} style={styles.photoThumb} />
+              </TouchableOpacity>
               <Text style={styles.photoIngredients} numberOfLines={2}>{item.ingredients || 'Sin ingredientes'}</Text>
               <TouchableOpacity style={styles.deletePhotoButton} onPress={() => handleDeletePhoto(item.id, item.photo_url)}>
                 <Text style={styles.deletePhotoText}>Eliminar</Text>
