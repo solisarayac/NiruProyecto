@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, TextInput, Image, Alert, ScrollView, FlatList, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, Image, Alert, ScrollView, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useFocusEffect } from 'expo-router'
 import { supabase } from '../services/supabase'
@@ -41,6 +41,8 @@ export default function ProfileScreen() {
   const [photoHistory, setPhotoHistory] = useState<PhotoHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
   const { Colors, toggleTheme, isDark } = useTheme()
   const styles = getStyles(Colors)
 
@@ -60,6 +62,15 @@ export default function ProfileScreen() {
     setPhotoHistory(history)
     setHistoryLoading(false)
     setInitialLoading(false)
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    try {
+      await loadProfile()
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   async function handlePickAvatar() {
@@ -100,7 +111,6 @@ export default function ProfileScreen() {
 
     setLoading(true)
 
-    // Verificar contraseña actual
     const { data: { user } } = await supabase.auth.getUser()
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user?.email ?? '',
@@ -181,7 +191,20 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+            progressBackgroundColor={Colors.cardBackground || Colors.background}
+            progressViewOffset={60}
+          />
+        }
+      >
         <Text style={styles.brand}>Niru</Text>
 
         <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAvatar}>

@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   FlatList, Image, ActivityIndicator, ScrollView, Animated
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../services/supabase'
 import { useTheme } from '../context/ThemeContext'
 import { Spacing, Radius } from '../constants/theme'
@@ -49,6 +50,28 @@ export default function ExploreScreen() {
     (minCalories ? 1 : 0) +
     (maxCalories ? 1 : 0) +
     (selectedSort !== 'popularity' ? 1 : 0)
+
+  // Cargar filtros persistidos al montar el componente
+  useEffect(() => {
+    loadFilters()
+  }, [])
+
+  async function saveFilters() {
+    const filters = { selectedDiets, excludedIngredients, selectedSort, minCalories, maxCalories }
+    await AsyncStorage.setItem('explore_filters', JSON.stringify(filters))
+  }
+
+  async function loadFilters() {
+    const saved = await AsyncStorage.getItem('explore_filters')
+    if (saved) {
+      const filters = JSON.parse(saved)
+      setSelectedDiets(filters.selectedDiets ?? [])
+      setExcludedIngredients(filters.excludedIngredients ?? [])
+      setSelectedSort(filters.selectedSort ?? 'popularity')
+      setMinCalories(filters.minCalories ?? '')
+      setMaxCalories(filters.maxCalories ?? '')
+    }
+  }
 
   async function handleSearch(text: string) {
     setQuery(text)
@@ -102,6 +125,7 @@ export default function ExploreScreen() {
     setSelectedSort('popularity')
     setMinCalories('')
     setMaxCalories('')
+    AsyncStorage.removeItem('explore_filters')
   }
 
   if (selectedRecipe) {
@@ -218,7 +242,14 @@ export default function ExploreScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.applyButton} onPress={() => { setShowFilters(false); if (query) search(query) }}>
+          <TouchableOpacity
+            style={styles.applyButton}
+            onPress={() => {
+              setShowFilters(false)
+              saveFilters()
+              if (query) search(query)
+            }}
+          >
             <Text style={styles.applyButtonText}>Aplicar filtros</Text>
           </TouchableOpacity>
         </ScrollView>
