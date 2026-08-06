@@ -40,6 +40,7 @@ export default function ExploreScreen() {
   const [results, setResults] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
   const { toast, showToast, hideToast } = useToast()
@@ -54,7 +55,42 @@ export default function ExploreScreen() {
   // Cargar filtros persistidos al montar el componente
   useEffect(() => {
     loadFilters()
+    loadSavedIds()
   }, [])
+
+  async function loadSavedIds() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from('saved_recipes').select('title').eq('user_id', user.id)
+    if (data) setSavedIds(new Set(data.map((r: any) => r.title)))
+  }
+
+  async function handleSaveRecipe(recipe: Recipe) {
+    if (savedIds.has(recipe.title)) {
+      showToast('Esta receta ya está guardada ⭐', 'info')
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase.from('saved_recipes').insert({
+      user_id: user.id,
+      recipe_id: recipe.id,
+      title: recipe.title,
+      image: recipe.image,
+      used: '',
+      missing: '',
+      from_manual_search: true,
+    })
+
+    if (!error) {
+      setSavedIds(prev => new Set(prev).add(recipe.title))
+      showToast('Receta guardada ✅', 'success')
+    } else {
+      showToast('No se pudo guardar la receta', 'error')
+    }
+  }
 
   async function saveFilters() {
     const filters = { selectedDiets, excludedIngredients, selectedSort, minCalories, maxCalories }
@@ -274,6 +310,14 @@ export default function ExploreScreen() {
             <Image source={{ uri: item.image }} style={styles.resultImage} />
             <View style={styles.resultInfo}>
               <Text style={styles.resultTitle}>{item.title}</Text>
+              <TouchableOpacity
+                style={[styles.saveResultButton, savedIds.has(item.title) && styles.saveResultButtonSaved]}
+                onPress={(e) => { e.stopPropagation?.(); handleSaveRecipe(item) }}
+              >
+                <Text style={[styles.saveResultText, savedIds.has(item.title) && styles.saveResultTextSaved]}>
+                  {savedIds.has(item.title) ? 'Guardada ✓' : 'Guardar Receta'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         )}
@@ -325,5 +369,9 @@ const getStyles = (Colors: any) => ({
   resultCard: { flexDirection: 'row' as const, backgroundColor: Colors.cardBackground, borderRadius: Radius.md, marginBottom: Spacing.sm, overflow: 'hidden' as const, borderWidth: 1, borderColor: Colors.grayBorder },
   resultImage: { width: 90, height: 90 },
   resultInfo: { flex: 1, padding: Spacing.md, justifyContent: 'center' as const },
-  resultTitle: { fontSize: 15, fontWeight: '600' as const, color: Colors.black },
+  resultTitle: { fontSize: 15, fontWeight: '600' as const, color: Colors.black, marginBottom: Spacing.sm },
+  saveResultButton: { backgroundColor: Colors.primaryLight, paddingVertical: 6, paddingHorizontal: Spacing.md, borderRadius: Radius.full, alignSelf: 'flex-start' as const },
+  saveResultButtonSaved: { backgroundColor: Colors.gray },
+  saveResultText: { color: Colors.primary, fontWeight: '700' as const, fontSize: 13 },
+  saveResultTextSaved: { color: Colors.grayText },
 })
