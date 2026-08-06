@@ -61,7 +61,7 @@ async function detectIngredientsWithOpenAI(base64: string): Promise<string[]> {
   }
 }
 
-async function translateText(texts: string[], targetLang = "es"): Promise<string[]> {
+async function translateText(texts: string[], targetLang: "es" | "en", sourceLang: "es" | "en"): Promise<string[]> {
   if (texts.length === 0) return [];
 
   const response = await fetch(
@@ -71,12 +71,14 @@ async function translateText(texts: string[], targetLang = "es"): Promise<string
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         q: texts,
+        source: sourceLang,
         target: targetLang,
         format: "text",
       }),
     },
   );
   const data = await response.json();
+  console.log(`translateText(${sourceLang}->${targetLang}):`, JSON.stringify(texts), "->", JSON.stringify(data.data?.translations?.map((t: any) => t.translatedText)));
   return data.data?.translations?.map((t: any) => t.translatedText) ?? texts;
 }
 
@@ -107,7 +109,7 @@ async function getInstructions(recipeId: number): Promise<any[]> {
   }));
 
   const stepsText = steps.map((s: any) => s.step);
-  const translated = await translateText(stepsText, "es");
+  const translated = await translateText(stepsText, "es", "en");
 
   return steps.map((s: any, i: number) => ({
     number: s.number,
@@ -135,7 +137,7 @@ async function getIngredients(recipeId: number): Promise<any> {
   const data = await response.json();
   
   const used = data.extendedIngredients?.map((i: any) => i.name) ?? [];
-  const translatedUsed = await translateText(used, "es");
+  const translatedUsed = await translateText(used, "es", "en");
   
   return {
     used: translatedUsed,
@@ -151,7 +153,7 @@ async function translateRecipes(rawRecipes: any[]) {
     if (r.missing) allTexts.push(...r.missing);
   }
 
-  const translated = await translateText(allTexts, "es");
+  const translated = await translateText(allTexts, "es", "en");
 
   let idx = 0;
   return rawRecipes.map((r: any) => {
@@ -215,7 +217,7 @@ Deno.serve(async (req) => {
       let englishQuery = query || "";
       if (englishQuery) {
         try {
-          const translated = await translateText([englishQuery], "en");
+          const translated = await translateText([englishQuery], "en", "es");
           englishQuery = translated[0] || englishQuery;
         } catch (e) {
           console.error("Error traduciendo consulta:", e);
@@ -264,7 +266,7 @@ Deno.serve(async (req) => {
       }
 
       const inputArr = ingredients.split(",").map((s: string) => s.trim());
-      const englishIngredientsArr = await translateText(inputArr, "en");
+      const englishIngredientsArr = await translateText(inputArr, "en", "es");
       const englishIngredientsString = englishIngredientsArr.join(",");
 
       const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
@@ -299,7 +301,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "No se detectaron ingredientes válidos" }, 400);
     }
 
-    const englishIngredientsArr = await translateText(ingredients, "en");
+    const englishIngredientsArr = await translateText(ingredients, "en", "es");
     const englishIngredientsString = englishIngredientsArr.join(",");
 
     const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
