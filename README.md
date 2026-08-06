@@ -147,3 +147,5 @@ Ver [ROADMAP.md](./documentacion/goalsCalendario.mdROADMAP.md)
 
 - [Arquitectura del sistema](./documentacion/arquitectura.md)
 - [Base de datos](./documentacion/baseDatos.md)
+
+Dato se usara herramienta externa
