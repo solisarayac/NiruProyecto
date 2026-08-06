@@ -18,6 +18,7 @@ type SavedRecipe = {
   used: string;
   missing: string;
   from_suggestions: boolean;
+  from_manual_search: boolean;
 };
 
 export default function FavoritesScreen() {
@@ -123,6 +124,11 @@ export default function FavoritesScreen() {
                 <Text style={styles.suggestionBadgeText}>⭐ Receta sugerida</Text>
               </View>
             )}
+            {item.from_manual_search && (
+              <View style={styles.manualSearchBadge}>
+                <Text style={styles.manualSearchBadgeText}>🔍 Búsqueda manual</Text>
+              </View>
+            )}
             <RecipeCard
               recipe={{
                 id: item.recipe_id,
@@ -140,6 +146,7 @@ export default function FavoritesScreen() {
               })}
               isSaved={true}
               onDelete={() => handleDelete(item.id)}
+              showIngredients={!item.from_suggestions && !item.from_manual_search}
             />
           </View>
         )}
@@ -196,9 +203,23 @@ const getStyles = (Colors: any) => ({
     marginBottom: 4, 
     marginLeft: 4 
   },
-  suggestionBadgeText: { 
-    fontSize: 12, 
-    color: Colors.primary, 
-    fontWeight: '600' as const 
+  suggestionBadgeText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600' as const
+  },
+  manualSearchBadge: {
+    backgroundColor: Colors.gray,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.full,
+    alignSelf: 'flex-start' as const,
+    marginBottom: 4,
+    marginLeft: 4
+  },
+  manualSearchBadgeText: {
+    fontSize: 12,
+    color: Colors.grayText,
+    fontWeight: '600' as const
   },
 });
