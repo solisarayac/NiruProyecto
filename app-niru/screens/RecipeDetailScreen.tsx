@@ -12,6 +12,8 @@ export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe;
   const [loading, setLoading] = useState(true)
   const [nutrition, setNutrition] = useState<any | null>(null)
   const [nutritionLoading, setNutritionLoading] = useState(false)
+  const [ingredients, setIngredients] = useState<any | null>(null)
+  const [ingredientsLoading, setIngredientsLoading] = useState(false)
 
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
@@ -29,6 +31,21 @@ export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe;
       console.log('Error cargando instrucciones:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchIngredients() {
+    setIngredientsLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('get-recipes', {
+        body: { action: 'ingredients', recipeId: recipe.id }
+      })
+      if (error) throw error
+      if (data?.ingredients) setIngredients(data.ingredients)
+    } catch (error) {
+      console.log('Error cargando ingredientes:', error)
+    } finally {
+      setIngredientsLoading(false)
     }
   }
 
@@ -63,6 +80,30 @@ export default function RecipeDetailScreen({ recipe, onBack }: { recipe: Recipe;
             <View style={styles.content}>
               <Text style={styles.title}>{recipe.title}</Text>
               <Text style={styles.sectionTitle}>Preparación</Text>
+
+              {!ingredients && !ingredientsLoading && (
+                <TouchableOpacity style={styles.nutritionButton} onPress={fetchIngredients}>
+                  <Text style={styles.nutritionButtonText}>🥘 Ver ingredientes completos</Text>
+                </TouchableOpacity>
+              )}
+
+              {ingredientsLoading && (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ marginBottom: Spacing.lg }} />
+              )}
+
+              {ingredients && (
+                <View style={styles.ingredientsContainer}>
+                  <Text style={styles.ingredientsTitle}>Ingredientes</Text>
+                  <View style={styles.ingredientsList}>
+                    {ingredients.used.map((ing: string, i: number) => (
+                      <View key={i} style={styles.ingredientItem}>
+                        <Text style={styles.ingredientDot}>•</Text>
+                        <Text style={styles.ingredientText}>{ing}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               {!nutrition && !nutritionLoading && steps.length > 0 && (
                 <TouchableOpacity style={styles.nutritionButton} onPress={fetchNutrition}>
@@ -148,4 +189,11 @@ const getStyles = (Colors: any) => ({
   nutritionIcon: { fontSize: 20, marginBottom: 4 },
   nutritionValue: { fontSize: 15, fontWeight: '700' as const, color: Colors.black },
   nutritionLabel: { fontSize: 11, color: Colors.grayText, marginTop: 2 },
+
+  ingredientsContainer: { marginBottom: Spacing.lg },
+  ingredientsTitle: { fontSize: 16, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
+  ingredientsList: { gap: Spacing.sm },
+  ingredientItem: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: Spacing.sm },
+  ingredientDot: { color: Colors.primary, fontSize: 18, fontWeight: '700' as const },
+  ingredientText: { fontSize: 14, color: Colors.black, textTransform: 'capitalize' as const },
 })

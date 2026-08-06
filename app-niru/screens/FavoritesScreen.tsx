@@ -4,7 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "../services/supabase";
 import RecipeCard from "../components/RecipeCard";
 import RecipeDetailScreen from "./RecipeDetailScreen";
-import { Spacing } from "../constants/theme";
+import { Spacing, Radius } from "../constants/theme";
 import { useTheme } from "../context/ThemeContext";
 import Toast from "../components/Toast";
 import { useToast } from "../hooks/useToast";
@@ -17,6 +17,7 @@ type SavedRecipe = {
   image: string;
   used: string;
   missing: string;
+  from_suggestions: boolean;
 };
 
 export default function FavoritesScreen() {
@@ -116,26 +117,31 @@ export default function FavoritesScreen() {
           </View>
         )}
         renderItem={({ item }) => (
-          <RecipeCard
-            recipe={{
-              id: item.recipe_id,
-              title: item.title,
-              image: item.image,
-              used: item.used ? item.used.split(",") : [],
-              missing: item.missing ? item.missing.split(",") : [],
-            }}
-            onPress={() =>
-              setSelectedRecipe({
+          <View>
+            {item.from_suggestions && (
+              <View style={styles.suggestionBadge}>
+                <Text style={styles.suggestionBadgeText}>⭐ Receta sugerida</Text>
+              </View>
+            )}
+            <RecipeCard
+              recipe={{
                 id: item.recipe_id,
                 title: item.title,
                 image: item.image,
-                used: item.used ? item.used.split(",") : [],
-                missing: item.missing ? item.missing.split(",") : [],
-              })
-            }
-            isSaved={true}
-            onDelete={() => handleDelete(item.id)}
-          />
+                used: item.used ? item.used.split(',') : [],
+                missing: item.missing ? item.missing.split(',') : [],
+              }}
+              onPress={() => setSelectedRecipe({
+                id: item.recipe_id,
+                title: item.title,
+                image: item.image,
+                used: item.used ? item.used.split(',') : [],
+                missing: item.missing ? item.missing.split(',') : [],
+              })}
+              isSaved={true}
+              onDelete={() => handleDelete(item.id)}
+            />
+          </View>
         )}
       />
       <Toast
@@ -181,4 +187,18 @@ const getStyles = (Colors: any) => ({
     textAlign: "center" as const,
   },
   list: { padding: Spacing.md, paddingBottom: 40 },
+  suggestionBadge: { 
+    backgroundColor: Colors.primaryLight, 
+    paddingVertical: 4, 
+    paddingHorizontal: Spacing.md, 
+    borderRadius: Radius.full, 
+    alignSelf: 'flex-start' as const, 
+    marginBottom: 4, 
+    marginLeft: 4 
+  },
+  suggestionBadgeText: { 
+    fontSize: 12, 
+    color: Colors.primary, 
+    fontWeight: '600' as const 
+  },
 });
