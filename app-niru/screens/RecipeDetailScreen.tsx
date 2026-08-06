@@ -177,7 +177,7 @@ const getStyles = (Colors: any) => ({
   step: { flexDirection: 'row' as const, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl, alignItems: 'flex-start' as const, gap: Spacing.md },
   stepCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center' as const, alignItems: 'center' as const, flexShrink: 0 },
   stepNumber: { color: Colors.white, fontWeight: '700' as const, fontSize: 16 },
-  stepText: { flex: 1, fontSize: 15, color: Colors.black, lineHeight: 24, paddingTop: Spacing.sm },
+  stepText: { flex: 1, fontSize: 15, color: Colors.black, lineHeight: 24 },
   list: { paddingBottom: Spacing.xxl },
 
   nutritionButton: { backgroundColor: Colors.primaryLight, padding: Spacing.md, borderRadius: Radius.full, alignItems: 'center' as const, marginBottom: Spacing.lg },

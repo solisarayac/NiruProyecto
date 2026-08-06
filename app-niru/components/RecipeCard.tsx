@@ -17,12 +17,14 @@ export default function RecipeCard({
   onPress,
   isSaved = false,
   onDelete,
+  showIngredients = true,
 }: {
   recipe: Recipe
   onSave?: () => void
   onPress: () => void
   isSaved?: boolean
   onDelete?: () => void
+  showIngredients?: boolean
 }) {
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
@@ -34,8 +36,12 @@ export default function RecipeCard({
         <Image source={{ uri: recipe.image }} style={styles.image} />
         <View style={styles.info}>
           <Text style={styles.title}>{recipe.title}</Text>
-          <Text style={styles.label}>Tienes: <Text style={styles.used}>{recipe.used.join(', ')}</Text></Text>
-          <Text style={styles.label}>Te falta: <Text style={styles.missing}>{recipe.missing.join(', ')}</Text></Text>
+          {showIngredients && (
+            <>
+              <Text style={styles.label}>Tienes: <Text style={styles.used}>{recipe.used.join(', ')}</Text></Text>
+              <Text style={styles.label}>Te falta: <Text style={styles.missing}>{recipe.missing.join(', ')}</Text></Text>
+            </>
+          )}
 
           {isSaved ? (
             onDelete ? (
