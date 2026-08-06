@@ -126,6 +126,21 @@ async function getNutrition(recipeId: number): Promise<any> {
   };
 }
 
+async function getIngredients(recipeId: number): Promise<any> {
+  const response = await fetch(
+    `https://api.spoonacular.com/recipes/${recipeId}/information?apiKey=${SPOONACULAR_KEY}`
+  );
+  const data = await response.json();
+  
+  const used = data.extendedIngredients?.map((i: any) => i.name) ?? [];
+  const translatedUsed = await translateText(used, "es");
+  
+  return {
+    used: translatedUsed,
+    missing: [],
+  };
+}
+
 async function translateRecipes(rawRecipes: any[]) {
   const allTexts: string[] = [];
   for (const r of rawRecipes) {
@@ -179,6 +194,15 @@ Deno.serve(async (req) => {
       }
       const nutrition = await getNutrition(recipeId);
       return jsonResponse({ nutrition });
+    }
+
+    if (action === "ingredients") {
+      const { recipeId } = body;
+      if (!recipeId) {
+        return jsonResponse({ error: "recipeId requerido" }, 400);
+      }
+      const ingredients = await getIngredients(recipeId);
+      return jsonResponse({ ingredients });
     }
 
     // Acción enviada por el buscador por texto
