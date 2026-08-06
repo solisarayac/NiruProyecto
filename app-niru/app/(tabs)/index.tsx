@@ -30,14 +30,18 @@ type Recipe = {
   missing: string[];
 };
 
-function SuggestionCard({ item, onPress, Colors, styles }: any) {
+function SuggestionCard({ item, onPress, onSave, Colors, styles }: any) {
   const { opacity, translateY } = useFadeIn()
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
       <TouchableOpacity style={styles.suggestionCard} onPress={() => onPress(item)}>
         <Image source={{ uri: item.image }} style={styles.suggestionImage} />
-        <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.suggestionFav}>Favorito de los usuarios</Text>
+        <View style={styles.suggestionFooter}>
+          <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
+          <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); onSave(item) }}>
+            <Text style={styles.suggestionHeart}>♡</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -217,6 +221,34 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleSaveSuggestion(recipe: any) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: existing } = await supabase
+      .from('saved_recipes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('title', recipe.title)
+      .single()
+
+    if (existing) { showToast('Esta receta ya está en tus favoritos ⭐', 'info'); return }
+
+    const { error } = await supabase.from('saved_recipes').insert({
+      user_id: user.id,
+      recipe_id: recipe.id,
+      title: recipe.title,
+      image: recipe.image,
+      used: '',
+      missing: '',
+      from_suggestions: true,
+    })
+
+    if (!error) {
+      showToast('Receta guardada ✅', 'success')
+    }
+  }
+
   if (initialLoading) return <HomeSkeleton />;
   if (selectedRecipe) return <RecipeDetailScreen recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
   if (selectedMock) return <RecipeDetailScreen recipe={selectedMock} onBack={() => setSelectedMock(null)} />;
@@ -318,6 +350,7 @@ export default function HomeScreen() {
                   key={item.id.toString()}
                   item={item}
                   onPress={setSelectedMock}
+                  onSave={handleSaveSuggestion}
                   Colors={Colors}
                   styles={styles}
                 />
@@ -353,8 +386,9 @@ const getStyles = (Colors: any) => ({
   sectionTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.primary, marginBottom: Spacing.md },
   suggestionCard: { width: 160, marginRight: Spacing.sm, borderRadius: Radius.md, overflow: 'hidden' as const, backgroundColor: Colors.cardBackground, borderWidth: 1, borderColor: Colors.grayBorder },
   suggestionImage: { width: '100%' as const, height: 110 },
-  suggestionTitle: { fontSize: 13, fontWeight: '600' as const, color: Colors.black, padding: Spacing.sm, paddingBottom: 2 },
-  suggestionFav: { fontSize: 11, color: Colors.green, paddingHorizontal: Spacing.sm, paddingBottom: Spacing.sm },
+  suggestionFooter: { flexDirection: 'row' as const, alignItems: 'center' as const, padding: Spacing.sm, paddingBottom: Spacing.sm },
+  suggestionTitle: { flex: 1, fontSize: 13, fontWeight: '600' as const, color: Colors.black },
+  suggestionHeart: { fontSize: 20, color: Colors.primary, paddingLeft: Spacing.sm },
   tagsContainer: { marginBottom: Spacing.md, marginTop: Spacing.sm },
   tagsTitle: { fontSize: 14, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
   tagsRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: Spacing.sm, marginBottom: Spacing.md },
