@@ -2,7 +2,12 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 
 const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? "";
 const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 const RESULTS_LIMIT = 2;
+
+const VISION_SYSTEM_PROMPT = `Devuelve ÚNICAMENTE un array plano de strings en formato JSON válido, sin formato Markdown (sin \`\`\`json), sin introducciones ni explicaciones, ejemplo: ["tomate","cebolla","huevo"].
+Nombres de ingredientes en español, en minúsculas y en singular.
+Detecta únicamente ingredientes/alimentos relevantes para una receta de cocina. Ignora el fondo, utensilios, envases y cualquier elemento no comestible.`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,25 +21,44 @@ function jsonResponse(data: any, status = 200) {
   });
 }
 
-async function detectLabels(base64: string): Promise<string[]> {
-  const response = await fetch(
-    `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requests: [
-          {
-            image: { content: base64 },
-            features: [{ type: "LABEL_DETECTION", maxResults: 20 }],
-          },
-        ],
-      }),
+async function detectIngredientsWithOpenAI(base64: string): Promise<string[]> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
     },
-  );
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: VISION_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Detecta los ingredientes visibles en esta imagen." },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } },
+          ],
+        },
+      ],
+      temperature: 0,
+      max_tokens: 300,
+    }),
+  });
+
   const data = await response.json();
-  const labels = data.responses[0]?.labelAnnotations || [];
-  return labels.map((label: any) => label.description as string);
+  const content = data.choices?.[0]?.message?.content ?? "[]";
+  const cleaned = content.trim().replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    const list = Array.isArray(parsed) ? parsed : (parsed.ingredients ?? parsed.ingredientes ?? []);
+    return list
+      .map((i: any) => String(i).toLowerCase().trim())
+      .filter((i: string) => i.length > 0);
+  } catch (e) {
+    console.error("Error parseando respuesta de OpenAI:", e, content);
+    return [];
+  }
 }
 
 async function translateText(texts: string[], targetLang = "es"): Promise<string[]> {
@@ -54,28 +78,6 @@ async function translateText(texts: string[], targetLang = "es"): Promise<string
   );
   const data = await response.json();
   return data.data?.translations?.map((t: any) => t.translatedText) ?? texts;
-}
-
-async function validateIngredient(label: string): Promise<string | null> {
-  const query = encodeURIComponent(label.toLowerCase());
-  const response = await fetch(
-    `https://api.spoonacular.com/food/ingredients/autocomplete?query=${query}&number=1&apiKey=${SPOONACULAR_KEY}`,
-  );
-  if (!response.ok) return null;
-  const data = await response.json();
-  if (data && data.length > 0) {
-    return data[0].name;
-  }
-  return null;
-}
-
-async function filterValidIngredients(labels: string[]): Promise<string[]> {
-  const results = await Promise.all(
-    labels.map((label) => validateIngredient(label)),
-  );
-  const valid = results.filter((r): r is string => r !== null);
-  const unique = [...new Set(valid)];
-  return unique.slice(0, 8);
 }
 
 async function getRandomRecipes(): Promise<any[]> {
@@ -291,15 +293,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "base64 o action válida requerida" }, 400);
     }
 
-    const labels = await detectLabels(base64);
-    const ingredients = await filterValidIngredients(labels);
+    const ingredients = await detectIngredientsWithOpenAI(base64);
 
     if (ingredients.length === 0) {
       return jsonResponse({ error: "No se detectaron ingredientes válidos" }, 400);
     }
 
-    const ingredientsString = ingredients.join(",");
-    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(ingredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
+    const englishIngredientsArr = await translateText(ingredients, "en");
+    const englishIngredientsString = englishIngredientsArr.join(",");
+
+    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
     const response = await fetch(recipesUrl);
     const data = await response.json();
 
@@ -312,9 +315,8 @@ Deno.serve(async (req) => {
     }));
 
     const recipes = await translateRecipes(rawRecipes);
-    const ingredientsTranslated = await translateText(ingredients, "es");
 
-    return jsonResponse({ ingredients: ingredientsTranslated.join(","), recipes });
+    return jsonResponse({ ingredients: ingredients.join(","), recipes });
   } catch (err) {
     console.error("Error atrapado en catch:", err);
     return jsonResponse({ error: "Error interno: " + err }, 500);
