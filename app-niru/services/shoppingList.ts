@@ -17,7 +17,13 @@ export async function addIngredients(userId: string, ingredients: string[]) {
     .eq('user_id', userId)
 
   const existingNames = existing?.map(i => i.ingredient.toLowerCase()) ?? []
-  const newIngredients = ingredients.filter(i => !existingNames.includes(i.toLowerCase()))
+  const seen = new Set(existingNames)
+  const newIngredients = ingredients.filter(i => {
+    const key = i.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 
   if (newIngredients.length === 0) return
 
