@@ -41,6 +41,8 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(false)
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [excludeSuggestions, setExcludeSuggestions] = useState<string[]>([])
+  const excludeDebounceRef = useRef<any>(null)
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
   const { toast, showToast, hideToast } = useToast()
@@ -145,10 +147,24 @@ export default function ExploreScreen() {
     )
   }
 
-  function addExclude() {
-    if (!excludeInput.trim()) return
-    setExcludedIngredients(prev => [...new Set([...prev, excludeInput.trim().toLowerCase()])])
+  function addExclude(value?: string) {
+    const term = (value ?? excludeInput).trim().toLowerCase()
+    if (!term) return
+    setExcludedIngredients(prev => [...new Set([...prev, term])])
     setExcludeInput('')
+    setExcludeSuggestions([])
+  }
+
+  function handleExcludeInputChange(text: string) {
+    setExcludeInput(text)
+    if (excludeDebounceRef.current) clearTimeout(excludeDebounceRef.current)
+    if (!text.trim()) { setExcludeSuggestions([]); return }
+    excludeDebounceRef.current = setTimeout(async () => {
+      const { data, error } = await supabase.functions.invoke('get-recipes', {
+        body: { action: 'autocompleteIngredient', query: text.trim() }
+      })
+      if (!error) setExcludeSuggestions(data?.suggestions ?? [])
+    }, 400)
   }
 
   function removeExclude(ingredient: string) {
@@ -246,13 +262,22 @@ export default function ExploreScreen() {
               placeholder="Ej: maní, leche..."
               placeholderTextColor={Colors.grayText}
               value={excludeInput}
-              onChangeText={setExcludeInput}
-              onSubmitEditing={addExclude}
+              onChangeText={handleExcludeInputChange}
+              onSubmitEditing={() => addExclude()}
             />
-            <TouchableOpacity style={styles.addButton} onPress={addExclude}>
+            <TouchableOpacity style={styles.addButton} onPress={() => addExclude()}>
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
+          {excludeSuggestions.length > 0 && (
+            <View style={styles.suggestionsBox}>
+              {excludeSuggestions.map(s => (
+                <TouchableOpacity key={s} style={styles.suggestionItem} onPress={() => addExclude(s)}>
+                  <Text style={styles.suggestionItemText}>{s}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           {excludedIngredients.length > 0 && (
             <View style={styles.tagsRow}>
               {excludedIngredients.map(i => (
@@ -358,6 +383,9 @@ const getStyles = (Colors: any) => ({
   excludeInput: { flex: 1, borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, padding: Spacing.sm, fontSize: 14, color: Colors.black, backgroundColor: Colors.inputBackground },
   addButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: 'center' as const, alignItems: 'center' as const },
   addButtonText: { color: Colors.white, fontSize: 22, fontWeight: '700' as const },
+  suggestionsBox: { borderWidth: 1, borderColor: Colors.grayBorder, borderRadius: Radius.md, backgroundColor: Colors.inputBackground, marginBottom: Spacing.sm, overflow: 'hidden' as const },
+  suggestionItem: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.grayBorder },
+  suggestionItemText: { fontSize: 14, color: Colors.black, textTransform: 'capitalize' as const },
   tagsRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: Spacing.sm, marginBottom: Spacing.sm },
   excludeTag: { backgroundColor: Colors.primaryLight, borderRadius: Radius.full, paddingVertical: 4, paddingHorizontal: Spacing.sm },
   excludeTagText: { color: Colors.primary, fontSize: 12, fontWeight: '600' as const },

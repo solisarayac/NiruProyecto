@@ -82,6 +82,17 @@ async function translateText(texts: string[], targetLang: "es" | "en", sourceLan
   return data.data?.translations?.map((t: any) => t.translatedText) ?? texts;
 }
 
+async function autocompleteIngredient(query: string): Promise<string[]> {
+  const englishQuery = (await translateText([query], "en", "es"))[0] ?? query;
+  const response = await fetch(
+    `https://api.spoonacular.com/food/ingredients/autocomplete?query=${encodeURIComponent(englishQuery)}&number=5&apiKey=${SPOONACULAR_KEY}`,
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+  const names = (data ?? []).map((i: any) => i.name as string);
+  return translateText(names, "es", "en");
+}
+
 async function getRandomRecipes(): Promise<any[]> {
   const response = await fetch(
     `https://api.spoonacular.com/recipes/random?number=9&apiKey=${SPOONACULAR_KEY}`,
@@ -176,6 +187,15 @@ Deno.serve(async (req) => {
     console.log("Body recibido:", JSON.stringify(body));
 
     const action = body?.action;
+
+    if (action === "autocompleteIngredient") {
+      const { query } = body;
+      if (!query || typeof query !== "string") {
+        return jsonResponse({ suggestions: [] });
+      }
+      const suggestions = await autocompleteIngredient(query);
+      return jsonResponse({ suggestions });
+    }
 
     if (action === "random") {
       const recipes = await getRandomRecipes();
