@@ -5,9 +5,9 @@ import { Spacing, Radius } from '../constants/theme'
 import { useTheme } from '../context/ThemeContext'
 
 export default function VerifyScreen({
-  email, firstName, lastName, avatarBase64, onVerified
+  email, firstName, lastName, avatarBase64, onVerified, onBack
 }: {
-  email: string, firstName: string, lastName: string, avatarBase64: string | null, onVerified: () => void
+  email: string, firstName: string, lastName: string, avatarBase64: string | null, onVerified: () => void, onBack?: () => void
 }) {
   const { Colors } = useTheme()
   const styles = getStyles(Colors)
@@ -47,6 +47,11 @@ export default function VerifyScreen({
 
   return (
     <View style={styles.container}>
+      {onBack && (
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backText}>← Volver</Text>
+        </TouchableOpacity>
+      )}
       <Text style={styles.brand}>Niru</Text>
       <Text style={styles.title}>Verificá tu correo</Text>
       <Text style={styles.subtitle}>
@@ -78,6 +83,8 @@ export default function VerifyScreen({
 
 const getStyles = (Colors: any) => ({
   container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg, paddingTop: Spacing.xxl, alignItems: 'center' as const, justifyContent: 'center' as const },
+  backButton: { position: 'absolute' as const, top: Spacing.xxl, left: Spacing.lg },
+  backText: { fontSize: 15, fontWeight: '600' as const, color: Colors.primary },
   brand: { fontSize: 48, fontWeight: '700' as const, fontStyle: 'italic' as const, color: Colors.primary, marginBottom: Spacing.xl },
   title: { fontSize: 22, fontWeight: '700' as const, color: Colors.black, marginBottom: Spacing.sm },
   subtitle: { fontSize: 14, color: Colors.grayText, textAlign: 'center' as const, marginBottom: Spacing.xl, lineHeight: 22 },

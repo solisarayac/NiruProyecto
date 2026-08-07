@@ -155,6 +155,7 @@ export default function LoginScreen() {
           setPendingVerification(false)
           setIsRegistering(false)
         }}
+        onBack={() => setPendingVerification(false)}
       />
     )
   }
