@@ -128,20 +128,42 @@ export default function HomeScreen() {
 
   async function handleOpenCamera() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return;
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.2 });
-    if (!result.canceled && result.assets[0].base64) {
-      processImage(result.assets[0].base64, result.assets[0].uri);
+    if (!permission.granted) {
+      RNAlert.alert(
+        'Permiso de cámara requerido',
+        'Activá el permiso de cámara para Niru en los ajustes de tu dispositivo para poder escanear ingredientes.'
+      );
+      return;
     }
+    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.2 });
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.base64 || !asset?.uri) {
+      RNAlert.alert('No se pudo capturar la foto', 'No se recibió la imagen de la cámara. Intentá de nuevo.');
+      return;
+    }
+    processImage(asset.base64, asset.uri);
   }
 
   async function handleOpenGallery() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.2 });
-    if (!result.canceled && result.assets[0].base64) {
-      processImage(result.assets[0].base64, result.assets[0].uri);
+    if (!permission.granted) {
+      RNAlert.alert(
+        'Permiso de galería requerido',
+        'Activá el permiso de galería para Niru en los ajustes de tu dispositivo para poder elegir una imagen.'
+      );
+      return;
     }
+    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.2 });
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.base64 || !asset?.uri) {
+      RNAlert.alert('No se pudo cargar la imagen', 'No se recibió la imagen seleccionada. Intentá de nuevo.');
+      return;
+    }
+    processImage(asset.base64, asset.uri);
   }
 
   async function processImage(base64: string, uri: string) {
@@ -167,6 +189,8 @@ export default function HomeScreen() {
       if (user) await savePhotoToHistory(user.id, base64, result.ingredients);
     } catch (error: any) {
       console.log("Error:", error);
+      const message = error?.message || error?.error_description || JSON.stringify(error);
+      RNAlert.alert('Error al analizar la imagen', message);
       if (user) await savePhotoToHistory(user.id, base64, "");
     } finally {
       setLoading(false);
