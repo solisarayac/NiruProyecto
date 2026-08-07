@@ -99,13 +99,14 @@ async function getRandomRecipes(): Promise<any[]> {
     `https://api.spoonacular.com/recipes/random?number=9&apiKey=${SPOONACULAR_KEY}`,
   );
   const data = await response.json();
-  return (data.recipes ?? []).map((r: any) => ({
+  const rawRecipes = (data.recipes ?? []).map((r: any) => ({
     id: r.id,
     title: r.title,
     image: r.image,
     used: [],
     missing: [],
   }));
+  return translateRecipes(rawRecipes);
 }
 
 async function getInstructions(recipeId: number): Promise<any[]> {
