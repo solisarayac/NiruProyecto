@@ -3,7 +3,8 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 const SPOONACULAR_KEY = Deno.env.get("SPOONACULAR_KEY") ?? "";
 const GOOGLE_VISION_KEY = Deno.env.get("GOOGLE_VISION_KEY") ?? "";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
-const RESULTS_LIMIT = 2;
+const PHOTO_RESULTS_LIMIT = 4;
+const TEXT_RESULTS_LIMIT = 7;
 
 const VISION_SYSTEM_PROMPT = `Devuelve ÚNICAMENTE un array plano de strings en formato JSON válido, sin formato Markdown (sin \`\`\`json), sin introducciones ni explicaciones, ejemplo: ["tomate","cebolla","huevo"].
 Nombres de ingredientes en español, en minúsculas y en singular.
@@ -75,7 +76,7 @@ async function translateText(texts: string[], targetLang: "es" | "en", sourceLan
         target: targetLang,
         format: "text",
       }),
-    },
+    },  
   );
   const data = await response.json();
   console.log(`translateText(${sourceLang}->${targetLang}):`, JSON.stringify(texts), "->", JSON.stringify(data.data?.translations?.map((t: any) => t.translatedText)));
@@ -246,7 +247,7 @@ Deno.serve(async (req) => {
 
       const params = new URLSearchParams({
         apiKey: SPOONACULAR_KEY,
-        number: String(RESULTS_LIMIT),
+        number: String(TEXT_RESULTS_LIMIT),
       });
 
       if (englishQuery) params.append("query", englishQuery);
@@ -289,7 +290,7 @@ Deno.serve(async (req) => {
       const englishIngredientsArr = await translateText(inputArr, "en", "es");
       const englishIngredientsString = englishIngredientsArr.join(",");
 
-      const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
+      const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${PHOTO_RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
       const response = await fetch(recipesUrl);
       const data = await response.json();
 
@@ -324,7 +325,7 @@ Deno.serve(async (req) => {
     const englishIngredientsArr = await translateText(ingredients, "en", "es");
     const englishIngredientsString = englishIngredientsArr.join(",");
 
-    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
+    const recipesUrl = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(englishIngredientsString)}&number=${PHOTO_RESULTS_LIMIT}&apiKey=${SPOONACULAR_KEY}`;
     const response = await fetch(recipesUrl);
     const data = await response.json();
 
